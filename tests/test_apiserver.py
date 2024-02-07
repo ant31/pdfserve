@@ -34,15 +34,11 @@ class TestServer:
         return d
 
     class Client(object):
-        def __init__(
-            self, client: requests.Session, headers: Optional[dict[str, str]] = None
-        ) -> None:
+        def __init__(self, client: requests.Session, headers: Optional[dict[str, str]] = None) -> None:
             self.client = client
             self.headers = headers
 
-        def _request(
-            self, method: str, path: str, params: dict[str, str], body: dict[str, Any]
-        ) -> requests.Response:
+        def _request(self, method: str, path: str, params: dict[str, str], body: dict[str, Any]) -> requests.Response:
             if params:
                 path = path + "?" + urllib.parse.urlencode(params)
 
@@ -52,21 +48,15 @@ class TestServer:
                 headers=self.headers,
             )
 
-        def get(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def get(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             path = path + "?" + urllib.parse.urlencode(params)
             return self.client.get(path, headers=self.headers)
 
-        def delete(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def delete(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             path = path + "?" + urllib.parse.urlencode(params)
             return self.client.delete(path, json=body)
 
-        def post(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def post(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             return self._request("post", path, params, body)
 
     def json(self, res: requests.Response) -> Any:
@@ -112,6 +102,7 @@ class TestServer:
         res = self.Client(client, self.headers()).get(url)
         assert res.status_code == 500
 
+
 BaseTestServer = TestServer
 
 
@@ -126,9 +117,7 @@ class LiveTestServer(BaseTestServer):
             self.client = client
             self.headers = headers
 
-        def _request(
-            self, method: str, path: str, params: dict[str, str], body: dict[str, Any]
-        ) -> requests.Response:
+        def _request(self, method: str, path: str, params: dict[str, str], body: dict[str, Any]) -> requests.Response:
             return getattr(self.client, method)(
                 path,
                 params=params,
@@ -136,19 +125,13 @@ class LiveTestServer(BaseTestServer):
                 headers=self.headers,
             )
 
-        def get(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def get(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             return self._request("get", path, params, body)
 
-        def delete(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def delete(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             return self._request("delete", path, params, body)
 
-        def post(
-            self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}
-        ) -> requests.Response:
+        def post(self, path: str, params: dict[str, str] = {}, body: dict[str, Any] = {}) -> requests.Response:
             return self._request("post", path, params, body)
 
     def _url_for(self, path: str) -> str:

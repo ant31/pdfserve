@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
+import logging
 from typing import Any, Literal, cast
 from urllib.parse import ParseResult, urlparse
-import logging
+
 import aiohttp
 from pydantic import BaseModel
 
@@ -10,18 +11,20 @@ from pdfserve.version import VERSION
 
 logger = logging.getLogger(__name__)
 
+
 class ClientConfig(BaseModel):
     endpoint: str = "http://localhost:8080"
     client_name: str = "client"
     verify_tls: bool = True
     session_args: tuple[list, dict[str, Any]] = ([], {})
 
+
 class SessionMixin:
-    _session: aiohttp.ClientSession | None  = None
+    _session: aiohttp.ClientSession | None = None
     _config: ClientConfig = ClientConfig()
 
-    def __init__(self, config: ClientConfig |  None , reload: bool = False) -> None:
-            self.__class__.set_config(config=config, reload=reload)
+    def __init__(self, config: ClientConfig | None, reload: bool = False) -> None:
+        self.__class__.set_config(config=config, reload=reload)
 
     @classmethod
     def close(cls):
@@ -37,7 +40,7 @@ class SessionMixin:
         if cls._session:
             if not cls._session.closed:
                 # Older aiohttp does not have _connector_owner
-                if not hasattr(cls._session, '_connector_owner') or cls._session._connector_owner:
+                if not hasattr(cls._session, "_connector_owner") or cls._session._connector_owner:
                     try:
                         if cls._session._connector:
                             cls._session._connector._close()  # New version returns a coroutine in close() as warning
@@ -49,10 +52,7 @@ class SessionMixin:
 
     @classmethod
     def default_config(cls) -> ClientConfig:
-        return ClientConfig(endpoint="http://localhost:8080",
-                            client_name="client",
-                            verify_tls=True)
-
+        return ClientConfig(endpoint="http://localhost:8080", client_name="client", verify_tls=True)
 
     @classmethod
     def set_config(cls, config: ClientConfig | None, reload: bool = False) -> ClientConfig:
@@ -69,14 +69,14 @@ class SessionMixin:
 
     @property
     def session(self) -> aiohttp.ClientSession:
-        """ An instance of aiohttp.ClientSession """
+        """An instance of aiohttp.ClientSession"""
         if not self._session or self._session.closed or self._session._loop.is_closed():
-            self.__class__._session = aiohttp.ClientSession(*self.config.session_args[0],
-                                                            **self.config.session_args[1])
+            self.__class__._session = aiohttp.ClientSession(*self.config.session_args[0], **self.config.session_args[1])
         return cast(aiohttp.ClientSession, self._session)
 
+
 class BaseClient(SessionMixin):
-    def __init__(self, config: ClientConfig |  None = None, reload: bool = False) -> None:
+    def __init__(self, config: ClientConfig | None = None, reload: bool = False) -> None:
         super().__init__(config=config, reload=reload)
         self.endpoint: ParseResult = self._configure_endpoint(self.config.endpoint)
         self._headers: dict[str, str] = {
@@ -139,4 +139,3 @@ class BaseClient(SessionMixin):
             headers.update(extra)
 
         return headers
-

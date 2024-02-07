@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
-import logging
-import uuid
 import asyncio
-from typing import BinaryIO, Annotated
-from fastapi import APIRouter, Query, UploadFile, BackgroundTasks, File
-from fastapi.responses import FileResponse
+import logging
 import tempfile
+import uuid
 from pathlib import Path
+from typing import Annotated, BinaryIO
 
-
+from fastapi import APIRouter, BackgroundTasks, File, Query, UploadFile
+from fastapi.responses import FileResponse
 
 import pdfserve.pdf as pdf
 from pdfserve.client.filedl import DownloadClient
@@ -21,16 +20,34 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/pdf", tags=["pdfserve"])
 
-@router.post("/merge", response_class = FileResponse,
-             response_description="The merged PDF file",
-             summary="Merge pdf files into one.",
-             responses={200: {"description": "The merged PDF file",
-                              "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}}})
-async def merge(background_tasks: BackgroundTasks, files: Annotated[list[UploadFile | str],
-                                                                    File(default_factory=list, title="Files",
-                                                                         description="a list of files to merge, can be a list of URL to download the file from or the uploaded file as binary object")] = [],
-                name: Annotated[str, Query(description="the name of the merged file, if not provided, a random name will be generated")] = "",
-                outline: Annotated[bool, Query(description="create an outline with the name of the file as items")] = True) -> FileResponse:
+
+@router.post(
+    "/merge",
+    response_class=FileResponse,
+    response_description="The merged PDF file",
+    summary="Merge pdf files into one.",
+    responses={
+        200: {
+            "description": "The merged PDF file",
+            "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+async def merge(
+    background_tasks: BackgroundTasks,
+    files: Annotated[
+        list[UploadFile | str],
+        File(
+            default_factory=list,
+            title="Files",
+            description="a list of files to merge, can be a list of URL to download the file from or the uploaded file as binary object",
+        ),
+    ] = [],
+    name: Annotated[
+        str, Query(description="the name of the merged file, if not provided, a random name will be generated")
+    ] = "",
+    outline: Annotated[bool, Query(description="create an outline with the name of the file as items")] = True,
+) -> FileResponse:
     """
     Merge pdf files into one.
 
@@ -72,9 +89,12 @@ async def merge(background_tasks: BackgroundTasks, files: Annotated[list[UploadF
     return FileResponse(dest, media_type="application/pdf", filename=name)
 
 
-
-@router.post("/stamp", response_class = FileResponse, response_description="the input PDF with a stamp/watermark added", summary="")
-async def stamp(background_tasks: BackgroundTasks, files: list[UploadFile | str] = [], name: str | None = None, outline: bool = True) -> FileResponse:
+@router.post(
+    "/stamp", response_class=FileResponse, response_description="the input PDF with a stamp/watermark added", summary=""
+)
+async def stamp(
+    background_tasks: BackgroundTasks, files: list[UploadFile | str] = [], name: str | None = None, outline: bool = True
+) -> FileResponse:
     """
     Merge pdf files into one.
 

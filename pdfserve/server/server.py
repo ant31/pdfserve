@@ -7,7 +7,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pdfserve.config import Config, GConfig
 from pdfserve.init import init
 
-from .api import info, pdf, debug
+from .api import debug, info, pdf
 from .middlewares.errors import catch_exceptions_middleware
 from .middlewares.process_time import add_process_time_header
 from .middlewares.token import TokenAuthMiddleware
@@ -43,6 +43,7 @@ class Server:
         self.app.include_router(pdf.router)
         if self.config.app.env not in ["prod", "production"]:
             self.app.include_router(debug.router)
+
 
 def serve() -> FastAPI:
     init("fastapi")

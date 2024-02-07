@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
 from email.utils import parseaddr
-from io import BytesIO
 from enum import StrEnum
-from typing import IO, Any, BinaryIO, Sequence, TypeAlias, Literal
-from pypdf import PdfWriter, PdfReader
+from io import BytesIO
 from pathlib import Path
-from pydantic import BaseModel, Field
+from typing import IO, Any, BinaryIO, Literal, Sequence, TypeAlias
+
+from fpdf import FPDF
 from PIL import Image as PILImage
 from PIL.Image import Image
-from fpdf import FPDF
+from pydantic import BaseModel, Field
+from pypdf import PdfReader, PdfWriter
 
 PDFInput: TypeAlias = str | BinaryIO | IO[Any] | PdfReader | Path
 PDFOutput: TypeAlias = IO[Any] | Path | str
+
 
 class Color(BaseModel):
     r: int = Field(default=0)
     g: int = Field(default=-1)
     b: int = Field(default=-1)
 
+
 class Point(BaseModel):
     x: int = Field(default=0)
     y: int = Field(default=0)
+
 
 class PositionEnum(StrEnum):
     TOP_LEFT = "tl"
@@ -33,7 +37,13 @@ class PositionEnum(StrEnum):
     LEFT = "l"
     RIGHT = "r"
 
-def get_position(pdf: FPDF, position: Point | None, position_name: PositionEnum = PositionEnum.TOP_LEFT, offset: Point = Point(x=0, y=0)) -> Point:
+
+def get_position(
+    pdf: FPDF,
+    position: Point | None,
+    position_name: PositionEnum = PositionEnum.TOP_LEFT,
+    offset: Point = Point(x=0, y=0),
+) -> Point:
     if not position:
         if position_name == PositionEnum.TOP_LEFT:
             position = Point(x=10, y=10)
@@ -44,21 +54,23 @@ def get_position(pdf: FPDF, position: Point | None, position_name: PositionEnum 
         elif position_name == PositionEnum.BOTTOM_RIGHT:
             position = Point(x=-15, y=-10)
         elif position_name == PositionEnum.TOP:
-            position = Point(x=int(pdf.epw/2), y=10)
+            position = Point(x=int(pdf.epw / 2), y=10)
         elif position_name == PositionEnum.BOTTOM:
-            position = Point(x=int(pdf.epw/2), y=-10)
+            position = Point(x=int(pdf.epw / 2), y=-10)
         elif position_name == PositionEnum.LEFT:
-            position = Point(x=10, y=int(pdf.eph/2))
+            position = Point(x=10, y=int(pdf.eph / 2))
         elif position_name == PositionEnum.RIGHT:
-            position = Point(x=-15, y=int(pdf.eph/2))
+            position = Point(x=-15, y=int(pdf.eph / 2))
         elif position_name == PositionEnum.CENTER:
-            position = Point(x=int(pdf.epw/2), y=int(pdf.eph/2))
+            position = Point(x=int(pdf.epw / 2), y=int(pdf.eph / 2))
         else:
             raise ValueError(f"Invalid position name: {position_name}")
     return Point(x=(position.x + offset.x), y=(position.y + offset.y))
 
+
 class BaseStamp(BaseModel):
     over: bool = Field(default=False)
+
 
 class BaseCustomStamp(BaseStamp):
     page_format: tuple[float, float] | Literal["a3", "a4", "a5", "letter", "legal"] = Field(default="a4")
@@ -69,7 +81,7 @@ class BaseCustomStamp(BaseStamp):
     background_color: Color = Field(default=Color(r=255, g=255, b=255))
     position: Point | None = Field(default=None)
     position_name: PositionEnum = Field(default=PositionEnum.TOP_LEFT)
-    position_offset: Point = Field(default=Point(x=0,y=0))
+    position_offset: Point = Field(default=Point(x=0, y=0))
 
     def get_position(self, pdf: FPDF) -> Point:
         return get_position(pdf, self.position, self.position_name, self.position_offset)
@@ -94,11 +106,12 @@ class StampImage(BaseCustomStamp):
     scale: float = Field(default=1)
 
     def render_pdf(self, pdf: FPDF) -> FPDF:
-        img = PILImage.open(self.image).convert('RGBA')
+        img = PILImage.open(self.image).convert("RGBA")
         if self.angle:
             img = img.rotate(self.angle)
-        pdf.image(img, w=img.width*self.scale, h=img.height*self.scale)
+        pdf.image(img, w=img.width * self.scale, h=img.height * self.scale)
         return pdf
+
 
 class StampText(BaseCustomStamp):
     text: str = Field(default="")
@@ -129,7 +142,7 @@ class PdfTransform:
         pdf.add_page()
         if isinstance(image, (Path, str)):
             image = PILImage.open(image)
-        pdf.image(image, w=image.width*scale, h=image.height*scale)
+        pdf.image(image, w=image.width * scale, h=image.height * scale)
         imgpdf = PdfReader(BytesIO(pdf.output()))
         writer = PdfWriter()
         writer.append(imgpdf)
@@ -153,7 +166,13 @@ class PdfTransform:
         merger.close()
         return output
 
-    def stamp(self, fileinput: PDFInput, output: PDFOutput, stamp: StampPdf | StampText | StampImage , pages: set[int] | None = None) -> PDFOutput:
+    def stamp(
+        self,
+        fileinput: PDFInput,
+        output: PDFOutput,
+        stamp: StampPdf | StampText | StampImage,
+        pages: set[int] | None = None,
+    ) -> PDFOutput:
         """
         Stamp a PDF file with a text string.
 
@@ -166,7 +185,7 @@ class PdfTransform:
         p = 0
         stamp_pdf = stamp.to_pdf().pages[0]
         for page in writer.pages:
-            if pages and  p not in pages:
+            if pages and p not in pages:
                 continue
             page.merge_page(stamp_pdf, over=stamp.over)
         success, _ = writer.write(output)

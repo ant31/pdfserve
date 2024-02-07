@@ -2,34 +2,35 @@ import hashlib
 import logging
 import tempfile
 from email.message import EmailMessage
-from pathlib import PurePath
-from urllib.parse import urlparse, unquote
-import aiofiles
 from io import BytesIO
+from pathlib import PurePath
+from urllib.parse import unquote, urlparse
+
+import aiofiles
 import aioshutil as shutil
-from pdfserve.client.base import BaseClient, ClientConfig
 from pydantic import BaseModel
+
+from pdfserve.client.base import BaseClient, ClientConfig
+
 # create a temporary directory using the context manager
 
 
 logger: logging.Logger = logging.getLogger(__name__)
+
 
 class FileDownload(BaseModel):
     filename: str | None = None
     content: BytesIO | None = None
     path: PurePath | str | None = None
 
+
 class DownloadClient(BaseClient):
 
     @classmethod
     def default_config(cls) -> ClientConfig:
-        return ClientConfig(endpoint="http://localhost:8080",
-                            client_name="filedl",
-                            verify_tls=True)
+        return ClientConfig(endpoint="http://localhost:8080", client_name="filedl", verify_tls=True)
 
-    def build_path(self,
-            content: bytes, source_path: str, dest_dir: str, filename: str = ""
-    ) -> str:
+    def build_path(self, content: bytes, source_path: str, dest_dir: str, filename: str = "") -> str:
 
         if not filename:
             path = PurePath(source_path)
@@ -38,8 +39,9 @@ class DownloadClient(BaseClient):
             filename = hashsha.hexdigest() + suffix
         return str(PurePath(dest_dir).joinpath(filename))
 
-
-    async def copy_local_file(self, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = "") -> FileDownload:
+    async def copy_local_file(
+        self, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = ""
+    ) -> FileDownload:
         filename = ""
 
         # Read input
@@ -70,7 +72,9 @@ class DownloadClient(BaseClient):
             headers.update(extra)
         return super().headers(extra=headers)
 
-    async def download_file(self, url: str, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = "") -> FileDownload:
+    async def download_file(
+        self, url: str, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = ""
+    ) -> FileDownload:
         resp = await self.session.get(url, headers=self.headers())
         resp.raise_for_status()
         content_disposition = resp.headers.get("Content-Disposition")
@@ -97,9 +101,8 @@ class DownloadClient(BaseClient):
             dest_path = self.build_path(content, source_path, dest_dir, filename)
         async with aiofiles.open(dest_path, "wb") as fopen:
             await fopen.write(content)
-        fd = FileDownload(filename=filename, path = dest_path)
+        fd = FileDownload(filename=filename, path=dest_path)
         return fd
-
 
     async def download(self, source: str, dest_dir: str = "") -> FileDownload:
         """
@@ -117,6 +120,4 @@ class DownloadClient(BaseClient):
         if parsedurl.scheme in ["http", "https"]:
             return await self.download_file(source, parsedurl.path, dest_dir)
 
-        raise AttributeError(
-            f"Unsupported file source: scheme={parsedurl.scheme} - path={parsedurl.path}"
-        )
+        raise AttributeError(f"Unsupported file source: scheme={parsedurl.scheme} - path={parsedurl.path}")

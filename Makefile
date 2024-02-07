@@ -68,10 +68,10 @@ pyre-check:
 	poetry run pyre --noninteractive check 2>/dev/null
 
 black:
-	poetry run black -t py310 tests $(package)
+	poetry run black -t py312 tests $(package)
 
 black-test:
-	poetry run black -t py310 tests $(package) --check
+	poetry run black -t py312 tests $(package) --check
 
 poetry-check:
 	poetry lock --check

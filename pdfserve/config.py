@@ -90,9 +90,7 @@ class FastAPIConfigSchema(BaseConfig):
 
 class LoggingConfigSchema(BaseConfig):
     use_colors: bool = Field(default=True)
-    log_config: dict[str, Any] | str | None = Field(
-        default_factory=lambda: LOGGING_CONFIG
-    )
+    log_config: dict[str, Any] | str | None = Field(default_factory=lambda: LOGGING_CONFIG)
     level: str = Field(default="info")
 
 
@@ -120,12 +118,8 @@ class ConfigSchema(BaseConfig):
     server: FastAPIConfigSchema = Field(default_factory=FastAPIConfigSchema)
     sentry: SentryConfigSchema = Field(default_factory=SentryConfigSchema)
     app: AppConfigSchema = Field(default_factory=AppConfigSchema)
-    s3: S3ConfigSchema = Field(  # pylint: disable=invalid-name
-        default_factory=S3ConfigSchema
-    )
-    model_config = SettingsConfigDict(
-        env_prefix="PDFSERVE_", env_nested_delimiter="__", case_sensitive=False
-    )
+    s3: S3ConfigSchema = Field(default_factory=S3ConfigSchema)  # pylint: disable=invalid-name
+    model_config = SettingsConfigDict(env_prefix="PDFSERVE_", env_nested_delimiter="__", case_sensitive=False)
 
 
 class Config:
@@ -140,9 +134,7 @@ class Config:
 
     def _set_conf(self, conf: ConfigSchema) -> None:
         self._conf = conf
-        self.looper_conf = temporalloop.config_loader.config_from_dict(
-            conf.model_dump()
-        )
+        self.looper_conf = temporalloop.config_loader.config_from_dict(conf.model_dump())
         self.load(force=True)
 
     @property

@@ -4,12 +4,15 @@ import logging
 import time
 
 from fastapi import APIRouter
+
 from pdfserve.server.exception import Forbidden
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/debug", tags=["debug"])
+
+
 @router.get("/error", tags=["debug"])
 async def gen_error():
     raise Forbidden("test")

@@ -14,9 +14,7 @@ class TokenAuthMiddleware:
         headers = Headers(scope=scope)
         if "token" not in headers or headers["token"] != self.token:
             error = UnauthorizedAccess("NoAuth")
-            await JSONResponse(
-                {"error": error.to_dict()}, status_code=error.status_code
-            )(scope, receive, send)
+            await JSONResponse({"error": error.to_dict()}, status_code=error.status_code)(scope, receive, send)
             return
         await self.app(scope, receive, send)
         return

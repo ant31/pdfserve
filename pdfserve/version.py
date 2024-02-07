@@ -12,11 +12,7 @@ def get_git_sha():
             return openf.read()
     else:
         try:
-            return (
-                subprocess.check_output(["git", "rev-parse", "HEAD"])
-                .strip()[0:8]
-                .decode()
-            )
+            return subprocess.check_output(["git", "rev-parse", "HEAD"]).strip()[0:8].decode()
         except (OSError, subprocess.CalledProcessError):
             pass
     return "unknown"

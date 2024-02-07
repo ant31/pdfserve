@@ -24,11 +24,13 @@ class S3Dest(BaseModel):
     path: str = Field("...")
     url: str = Field(default="")
 
+
 class Job(BaseModel):
     uuid: str = Field(...)
     name: str = Field(...)
     status: str | None = Field(default=None)
     result: dict = Field(default={})
+
 
 class JobList(BaseModel):
     jobs: list[Job] = Field([])
@@ -39,15 +41,11 @@ class AsyncResponse(BaseModel):
     signature: str | None = Field(default=None)
 
     def gen_signature(self):
-        self.signature = hmac.new(
-            self.secret_key, self.payload.model_dump_json().encode(), hashlib.sha256
-        ).hexdigest()
+        self.signature = hmac.new(self.secret_key, self.payload.model_dump_json().encode(), hashlib.sha256).hexdigest()
         return self.signature
 
     def check_signature(self):
-        expect = hmac.new(
-            self.secret_key, self.payload.model_dump_json().encode(), hashlib.sha256
-        ).hexdigest()
+        expect = hmac.new(self.secret_key, self.payload.model_dump_json().encode(), hashlib.sha256).hexdigest()
         if expect != self.signature:
             return False
         return True
