@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "pdfserve"
+version = "0.1.0"
+description = ""
+authors = ["ant31 <2t.antoine@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+pdfserve = 'pdfserve.main:main'
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4"
+
+asyncio = "^3"
+pydantic = "*"
+click = "*"
+pyyaml = "*"
+
+paramiko = "*"
+sentry-sdk = {extras = ["fastapi"], version = "*"}
+# temporalloop = {path = "../temporalrunner", develop = true}
+aiohttp = {extras = ["speedups"], version = "*"}
+aiohttp_requests = "*"
+fastapi = {version = "*", extras = ["all"]}
+typing-extensions = "*"
+
+aiohttp-prometheus-exporter = "*"
+starlette-exporter = "*"
+pydantic-settings = "*"
+pypdf = "*"
+typer = "^0.9.0"
+pillow = "*"
+rich = "*"
+fpdf2 = "*"
+aiofiles = "*"
+aioshutil = "^1.3"
+python-multipart = "^0.0.6"
+[tool.poetry.dev-dependencies]
+black = "*"
+ipython = "*"
+pylint = "*"
+pyre-check = "*"
+types-requests = "*"
+isort = "*"
+pytest = "<8"
+coverage = "*"
+pytest-cov = "*"
+bumpversion = "*"
+pytest-ordering = "*"
+pytest-asyncio = "*"
+pyright = "*"
+pytest-aioresponses = "*"
+
+[tool.poetry.group.dev.dependencies]
+aioresponses = "*"
+pyreadline = "*"
+pylint-pydantic = "*"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.isort]
+atomic = true
+profile = "black"
+line_length = 120
+skip_gitignore = true
+
+[tool.pytest]
+testpaths = "tests/"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

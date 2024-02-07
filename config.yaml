@@ -1,0 +1,74 @@
+app:
+  env: dev
+  prometheus_dir: /tmp/prometheus
+logging:
+  level: info
+  log_config:
+    disable_existing_loggers: false
+    formatters:
+      default:
+        (): pdfserve.logutils.DefaultFormatter
+        fmt: '%(levelprefix)s %(message)s'
+        use_colors: null
+    handlers:
+      default:
+        class: logging.StreamHandler
+        formatter: default
+        level: INFO
+        stream: ext://sys.stdout
+    loggers:
+      pdfserve:
+        handlers:
+        - default
+        level: INFO
+        propagate: true
+      temporalio:
+        handlers:
+        - default
+        level: INFO
+        propagate: true
+      temporalloop:
+        handlers:
+        - default
+        level: INFO
+        propagate: true
+    version: 1
+  use_colors: true
+s3:
+  access_key: ''
+  bucket: pdfserve
+  endpoint: https://s3.eu-central-1.amazonaws.com
+  prefix: pdfserve/
+  region: eu-central-1
+  secret_key: ''
+sentry:
+  dsn: null
+  environment: null
+  release: null
+  traces_sample_rate: null
+server:
+  cors:
+    allow_credentials: false
+    allow_headers:
+    - '*'
+    allow_methods:
+    - '*'
+    allow_origin_regex: .*
+    allow_origins:
+    - http://localhost:8080
+    - http://localhost:8000
+    - http://localhost
+  host: 0.0.0.0
+  middlewares: []
+  port: 8080
+  reload: false
+  token: ''
+temporalio:
+  converter: null
+  default_factory: temporalloop.worker:WorkerFactory
+  host: localhost:7233
+  interceptors: []
+  namespace: default
+  pre_init: []
+  workers: []
+
