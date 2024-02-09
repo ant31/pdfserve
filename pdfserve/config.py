@@ -5,11 +5,9 @@ import logging.config
 import os
 from typing import Any, Union
 
-import temporalloop.config_loader
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from temporalloop.config_loader import TemporalConfigSchema
 
 LOG_LEVELS: dict[str, int] = {
     "critical": logging.CRITICAL,
@@ -37,15 +35,7 @@ LOGGING_CONFIG: dict[str, Any] = {
             "level": "INFO",
         },
     },
-    "loggers": {
-        "temporalio": {"handlers": ["default"], "level": "INFO", "propagate": True},
-        "pdfserve": {"handlers": ["default"], "level": "INFO", "propagate": True},
-        "temporalloop": {
-            "handlers": ["default"],
-            "level": "INFO",
-            "propagate": True,
-        },
-    },
+    "loggers": {"pdfserve": {"handlers": ["default"], "level": "INFO", "propagate": True}},
 }
 
 
@@ -53,7 +43,7 @@ logger: logging.Logger = logging.getLogger("pdfserve")
 
 
 class BaseConfig(BaseSettings):
-    model_config = SettingsConfigDict()
+    model_config = SettingsConfigDict(extra="allow")
 
 
 class AppConfigSchema(BaseConfig):
@@ -101,24 +91,13 @@ class SentryConfigSchema(BaseConfig):
     traces_sample_rate: float | None = Field(default=None)
 
 
-class S3ConfigSchema(BaseConfig):
-    endpoint: str = Field(default="https://s3.eu-central-1.amazonaws.com")
-    access_key: str = Field(default="")
-    secret_key: str = Field(default="")
-    region: str = Field(default="eu-central-1")
-    prefix: str = Field(default="pdfserve/")
-    bucket: str = Field(default="pdfserve")
-
-
 # Main configuration schema
 class ConfigSchema(BaseConfig):
     # pdfserve: PDFServeConfigSchema = Field(default_factory=PDFServeConfigSchema)
-    temporalio: TemporalConfigSchema = Field(default_factory=TemporalConfigSchema)
     logging: LoggingConfigSchema = Field(default_factory=LoggingConfigSchema)
     server: FastAPIConfigSchema = Field(default_factory=FastAPIConfigSchema)
     sentry: SentryConfigSchema = Field(default_factory=SentryConfigSchema)
     app: AppConfigSchema = Field(default_factory=AppConfigSchema)
-    s3: S3ConfigSchema = Field(default_factory=S3ConfigSchema)  # pylint: disable=invalid-name
     model_config = SettingsConfigDict(env_prefix="PDFSERVE_", env_nested_delimiter="__", case_sensitive=False)
 
 
@@ -134,7 +113,6 @@ class Config:
 
     def _set_conf(self, conf: ConfigSchema) -> None:
         self._conf = conf
-        self.looper_conf = temporalloop.config_loader.config_from_dict(conf.model_dump())
         self.load(force=True)
 
     @property
@@ -142,16 +120,8 @@ class Config:
         return self.conf.logging
 
     @property
-    def temporalio(self) -> TemporalConfigSchema:
-        return self.conf.temporalio
-
-    @property
     def server(self) -> FastAPIConfigSchema:
         return self.conf.server
-
-    @property
-    def s3(self) -> S3ConfigSchema:
-        return self.conf.s3
 
     @property
     def sentry(self) -> SentryConfigSchema:
@@ -167,8 +137,6 @@ class Config:
 
     def load(self, force=True) -> bool:
         if not self.loaded or force:
-            self.looper_conf.loaded = False
-            self.looper_conf.load()
             self.configure_logging()
             self.loaded = True
             return True

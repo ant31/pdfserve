@@ -2,9 +2,6 @@
   "site_package_search_strategy": "pep561",
   "strict": false,
   "search_path": [
-    { "site-package": "boto3" },
-    { "site-package": "botocore" },
-    { "site-package": "temporalloop" },
     { "site-package": "aiohttp_prometheus_exporter" },
     { "site-package": "aiohttp_requests" }
   ],

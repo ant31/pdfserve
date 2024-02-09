@@ -1,12 +1,10 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
 import logging
-import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from pdfserve.server.exception import Forbidden
 from pdfserve.version import VERSION
 
 router = APIRouter()

@@ -46,13 +46,6 @@ def run_server(config: Config):
     show_default=True,
 )
 @click.option(
-    "--temporal-host",
-    type=str,
-    default=None,
-    help="Address of the server",
-    show_default=True,
-)
-@click.option(
     "--log-config",
     type=click.Path(exists=True),
     default=None,
@@ -82,7 +75,6 @@ def server(
     config: str,
     host: str,
     port: int,
-    temporal_host: str,
     use_colors: bool,
     log_level: str,
     log_config: str,
@@ -90,8 +82,6 @@ def server(
     _config = GConfig(config)
     if host:
         _config.server.host = host
-    if temporal_host:
-        _config.temporalio.host = temporal_host
     if port:
         _config.server.port = port
     if log_level:

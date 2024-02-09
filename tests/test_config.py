@@ -10,7 +10,6 @@ def test_config_test_env():
 
 def test_config_fields():
     assert GConfig().sentry.dsn == None
-    assert GConfig().temporalio.host == "localhost:7233"
     assert GConfig().server.port == 8080
     assert GConfig().logging.level == "info"
     assert GConfig().conf.app.env == "test"

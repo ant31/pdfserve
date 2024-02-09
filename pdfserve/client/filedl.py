@@ -2,13 +2,13 @@ import hashlib
 import logging
 import tempfile
 from email.message import EmailMessage
-from io import BytesIO
-from pathlib import PurePath
+from pathlib import Path, PurePath
+from typing import BinaryIO, Literal
 from urllib.parse import unquote, urlparse
 
 import aiofiles
 import aioshutil as shutil
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from pdfserve.client.base import BaseClient, ClientConfig
 
@@ -18,10 +18,13 @@ from pdfserve.client.base import BaseClient, ClientConfig
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class FileDownload(BaseModel):
-    filename: str | None = None
-    content: BytesIO | None = None
-    path: PurePath | str | None = None
+class FileInfo(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    filename: str = Field(default="")
+    content: BinaryIO | None = Field(default=None)
+    path: PurePath | str | None = Field(default=None)
+    source: str | Path | None = Field(default=None)
+    metadata: dict[str, str] | None = Field(default=None)
 
 
 class DownloadClient(BaseClient):
@@ -30,94 +33,90 @@ class DownloadClient(BaseClient):
     def default_config(cls) -> ClientConfig:
         return ClientConfig(endpoint="http://localhost:8080", client_name="filedl", verify_tls=True)
 
-    def build_path(self, content: bytes, source_path: str, dest_dir: str, filename: str = "") -> str:
-
-        if not filename:
-            path = PurePath(source_path)
-            hashsha = hashlib.sha256(content)
-            suffix = path.suffix
-            filename = hashsha.hexdigest() + suffix
+    def _gen_sha(self, content: bytes, source_path: str, dest_dir: str, filename: str) -> str:
+        path = PurePath(source_path)
+        hashsha = hashlib.sha256(content)
+        suffix = path.suffix
+        filename = hashsha.hexdigest() + suffix
         return str(PurePath(dest_dir).joinpath(filename))
 
     async def copy_local_file(
-        self, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = ""
-    ) -> FileDownload:
-        filename = ""
+        self, source_path: str, dest_dir: str | Path = "", output: str | Path | BinaryIO = ""
+    ) -> FileInfo:
 
-        # Read input
-        async with aiofiles.open(source_path, "rb") as fopen:
-            content = await fopen.read()
-
+        filename = PurePath(source_path).name
         # Write output
-        # if output is a BytesIO, write the content to it and return it
-        if output and isinstance(output, BytesIO):
-            output.write(content)
-            return FileDownload(content=output, filename=filename)
+        # if output is a BinaryIO, write the content to it and return it
+        if output and isinstance(output, BinaryIO):
+            # Read input
+            async with aiofiles.open(source_path, "rb") as fopen:
+                output.write(await fopen.read())
+                return FileInfo(content=output, filename=filename, source=source_path)
 
-        # if output is a string, write the content to the file and return
-        elif output and isinstance(output, str):
+        # if output is a string, write the content to that file and return
+        elif output and isinstance(output, (Path, str)):
             dest_path = output
         else:
-            if not sha_name:
-                filename = PurePath(source_path).name
-            dest_path = self.build_path(content, source_path, dest_dir, filename)
+            dest_path = PurePath(dest_dir).joinpath(filename)
         await shutil.copyfile(source_path, dest_path)
-        return FileDownload(filename=filename, path=dest_path, content=BytesIO(content))
+        return FileInfo(filename=filename, path=dest_path, source=source_path)
 
-    def headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
+    def headers(
+        self, content_type: Literal["json", "form"] | str | None = None, extra: dict[str, str] | None = None
+    ) -> dict[str, str]:
         headers = {
             "Accept": "*/*",
         }
         if extra is not None:
             headers.update(extra)
-        return super().headers(extra=headers)
+        return super().headers(content_type=content_type, extra=headers)
 
     async def download_file(
-        self, url: str, source_path: str, dest_dir: str, sha_name: bool = False, output: str | BytesIO = ""
-    ) -> FileDownload:
+        self, url: str, source_path: str, dest_dir: str | Path = "", output: str | Path | BinaryIO = ""
+    ) -> FileInfo:
         resp = await self.session.get(url, headers=self.headers())
         resp.raise_for_status()
-        content_disposition = resp.headers.get("Content-Disposition")
+
         filename: str = ""
 
-        if not sha_name:
-            if content_disposition:
-                msg = EmailMessage()
-                msg["Content-Disposition"] = content_disposition
-                _, params = msg.get_content_type(), msg["Content-Disposition"].params
-                filename = params.get("filename", "")
-            if not filename:
-                filename = unquote(PurePath(source_path).name)
+        content_disposition = resp.headers.get("Content-Disposition")
+        if content_disposition:
+            msg = EmailMessage()
+            msg["Content-Disposition"] = content_disposition
+            _, params = msg.get_content_type(), msg["Content-Disposition"].params
+            filename = params.get("filename", "")
+        if not filename:
+            filename = unquote(PurePath(source_path).name)
 
         content = await resp.content.read()
 
-        if output and isinstance(output, BytesIO):
+        if output and isinstance(output, BinaryIO):
             output.write(content)
-            fd = FileDownload(content=output, filename=filename)
+            fd = FileInfo(content=output, filename=filename, source=url)
             return fd
-        elif output and isinstance(output, str):
+        if output and isinstance(output, (Path, str)):
             dest_path = output
         else:
-            dest_path = self.build_path(content, source_path, dest_dir, filename)
+            dest_path = PurePath(dest_dir).joinpath(filename)
         async with aiofiles.open(dest_path, "wb") as fopen:
             await fopen.write(content)
-        fd = FileDownload(filename=filename, path=dest_path)
+        fd = FileInfo(filename=filename, path=dest_path, source=url)
         return fd
 
-    async def download(self, source: str, dest_dir: str = "") -> FileDownload:
+    async def download(
+        self, source: str | Path, dest_dir: str | Path = "", output: str | Path | BinaryIO = ""
+    ) -> FileInfo:
         """
         Determine the protocol to fetch the document:
         file://,
         http://,
         s3:// ...
         """
-        if not dest_dir:
-            dest_dir = tempfile.mkdtemp()
         parsedurl = urlparse(source)
         logger.info("download %s, %s", source, parsedurl.path)
         if parsedurl.scheme in ["file", ""]:
-            return await self.copy_local_file(parsedurl.path, dest_dir)
+            return await self.copy_local_file(source_path=parsedurl.path, dest_dir=dest_dir, output=output)
         if parsedurl.scheme in ["http", "https"]:
-            return await self.download_file(source, parsedurl.path, dest_dir)
+            return await self.download_file(url=source, source_path=parsedurl.path, dest_dir=dest_dir, output=output)
 
         raise AttributeError(f"Unsupported file source: scheme={parsedurl.scheme} - path={parsedurl.path}")

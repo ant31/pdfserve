@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 import urllib.parse
@@ -6,14 +5,10 @@ from typing import Any, Optional, Type
 
 import pytest
 import requests
-from aioresponses import aioresponses
 from fastapi.testclient import TestClient
 
 import pdfserve.config
 import pdfserve.version
-from pdfserve.models import AsyncResponse
-from pdfserve.server.api import GTClient
-from pdfserve.server.exception import APIException
 from pdfserve.server.server import serve
 
 DEFAULT_PREFIX = "http://localhost:5000"
@@ -87,7 +82,7 @@ class TestServer:
         assert self.json(res) == {"version": pdfserve.version.VERSION.app_version}
 
     def test_error(self, client: requests.Session) -> None:
-        url = self._url_for("/error")
+        url = self._url_for("/debug/error")
         res = self.Client(client, self.headers()).get(url)
         assert res.status_code == 403
 
@@ -97,7 +92,7 @@ class TestServer:
         assert res.status_code == 404
 
     def test_500(self, client: requests.Session) -> None:
-        url = self._url_for("/error_uncatched")
+        url = self._url_for("/debug/error_uncatched")
 
         res = self.Client(client, self.headers()).get(url)
         assert res.status_code == 500

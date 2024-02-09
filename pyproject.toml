@@ -18,8 +18,6 @@ pyyaml = "*"
 
 paramiko = "*"
 sentry-sdk = {extras = ["fastapi"], version = "*"}
-temporalio = { version = "*", extras = ["opentelemetry"] }
-temporalloop = {git = "https://github.com/connylabs/temporal-loop"}
 # temporalloop = {path = "../temporalrunner", develop = true}
 aiohttp = {extras = ["speedups"], version = "*"}
 aiohttp_requests = "*"
@@ -28,7 +26,6 @@ typing-extensions = "*"
 
 aiohttp-prometheus-exporter = "*"
 starlette-exporter = "*"
-boto3 = "*"
 pydantic-settings = "*"
 pypdf = "*"
 typer = "^0.9.0"
@@ -55,9 +52,9 @@ pyright = "*"
 pytest-aioresponses = "*"
 
 [tool.poetry.group.dev.dependencies]
-aioresponses = "^0.7.4"
-pyreadline = "^2.1"
-pylint-pydantic = "^0.2.4"
+aioresponses = "*"
+pyreadline = "*"
+pylint-pydantic = "*"
 
 [tool.black]
 line-length = 120
