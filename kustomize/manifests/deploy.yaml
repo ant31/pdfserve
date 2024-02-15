@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: pdfserve
+  annotations:
+    linkerd.io/inject: disabled
+  name: pdfserve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pdfserve
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: disabled
+      labels:
+        app.kubernetes.io/name: pdfserve
+    spec:
+      containers:
+      - command:
+          - poetry
+        args:
+          - run
+          - bin/pdfserve
+          - server
+          - --config
+          - /app/current-config.yaml
+        workingDir: /app
+        image: img.conny.dev/oss/pdfserve:latest
+        imagePullPolicy: Always
+        name: pdfserve
+        env:
+          - name: PDFSERVE_CONFIG
+            value: /app/current-config.yaml
+        envFrom:
+          - configMapRef:
+              name: pdfserve-config-env
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+          - name: config
+            mountPath: /app/current-config.yaml
+            subPath: config.yaml
+          - name: prometheus
+            mountPath: /tmp/prometheus
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1000Mi
+      volumes:
+        - name: config
+          configMap:
+            name: pdfserve-config
+        - name: prometheus
+          emptyDir: {}
+
