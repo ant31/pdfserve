@@ -60,7 +60,7 @@ def cleanup(tmpf):
         }
     },
 )
-async def merge(
+async def merge_pdf(
     background_tasks: BackgroundTasks,
     files: Annotated[
         list[UploadFile | str],
@@ -122,7 +122,7 @@ async def stamp_all(
     summary="Apply Stamp",
     responses={
         200: {
-            "description": "PDF file with the stamp applied"
+            "description": "PDF file with the stamp applied",
             "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
         }
     },
