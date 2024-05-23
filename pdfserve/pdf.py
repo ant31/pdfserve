@@ -371,7 +371,7 @@ class PdfTransform:
             # Skip non-image files
             logger.debug("Failed to open image: %s", e)
         if pdfinfo.image:
-            pdfinfo.pdf = self._img_to_pdf(pdfinfo.image, pdfinfo.path, scale=pdfinfo.scale, dpi=self.dpi)
+            pdfinfo.pdf = self._img_to_pdf(pdfinfo.image, None, scale=pdfinfo.scale, dpi=self.dpi)
         return pdfinfo
 
     async def load_files(
