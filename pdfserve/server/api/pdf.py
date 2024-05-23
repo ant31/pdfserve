@@ -73,6 +73,7 @@ async def merge_pdf(
     name: Annotated[
         str, Query(description="the name of the merged file, if not provided, a random name will be generated")
     ] = "",
+    dpi: Annotated[int, Query(description="DPI to use for input images")] = 96,
     outline: Annotated[bool, Query(description="create an outline with the name of the file as items")] = True,
 ) -> FileResponse:
     """
@@ -86,7 +87,7 @@ async def merge_pdf(
     logger.info("Merging: %s, outline: %s", str(inputs), outline)
     with tempfile.NamedTemporaryFile(suffix=".pdf", mode="w+b", delete=False) as tmpf:
         background_tasks.add_task(cleanup, tmpf)
-        pt = PdfTransform(files=inputs, dest_dir="", use_temporary=True)
+        pt = PdfTransform(files=inputs, dest_dir="", use_temporary=True, dpi=dpi)
         output = await pt.merge(name=name, output=tmpf.file, outline=outline)
         if output is None:
             raise ValueError("No output")
