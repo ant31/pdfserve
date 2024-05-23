@@ -15,15 +15,28 @@ from fpdf import FPDF
 from PIL.Image import Image
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, field_validator  # , model_serializer
 from pypdf import PdfReader, PdfWriter
+from pillow_heif import register_heif_opener
+from PIL.ImageOps import contain
 
 from pdfserve.client.filedl import DownloadClient
 
+register_heif_opener()
 StreamOrPath: TypeAlias = Path | str | BinaryIO | IO[Any]
 PDFInput: TypeAlias = IOBase | StreamOrPath
 PDFOutput: TypeAlias = IOBase | StreamOrPath
 
-
 logger: logging.Logger = logging.getLogger(__name__)
+
+A4DPI: dict[int, tuple[int, int]] = {  # A4 size in pixels at N DPI
+    # 72 DPI
+    72: (595, 842),
+    96: (794, 1123),
+    150: (1240, 1754),
+    300: (2480, 3508),
+    # 96 DPI
+    # 150 DPI
+    # 300 DPI
+}
 
 
 class PdfFileInfo(BaseModel):
@@ -233,7 +246,7 @@ class StampImage(BaseCustomStamp):
         image = self.image or self._image
         if image is None:
             raise ValueError("No image to stamp")
-        img = PIL.Image.open(image).convert("RGBA")
+        img = PIL.Image.open(image).convert("RGB")
         if self.angle:
             img = img.rotate(self.angle)
         if self.scale != 1:
@@ -275,7 +288,9 @@ class PdfTransform:
         dest_dir: str = "",
         tmpdir: str | None = None,
         use_temporary: bool = True,
+        dpi: int = 96,
     ):
+        self.dpi = dpi
         self._input_files = files
         self.dest_dir = dest_dir
         self.tmpdir = tmpdir
@@ -356,7 +371,7 @@ class PdfTransform:
             # Skip non-image files
             logger.debug("Failed to open image: %s", e)
         if pdfinfo.image:
-            pdfinfo.pdf = self._img_to_pdf(pdfinfo.image, pdfinfo.path, scale=pdfinfo.scale)
+            pdfinfo.pdf = self._img_to_pdf(pdfinfo.image, pdfinfo.path, scale=pdfinfo.scale, dpi=self.dpi)
         return pdfinfo
 
     async def load_files(
@@ -417,22 +432,25 @@ class PdfTransform:
     def split(self) -> list[PDFOutput]:
         raise NotImplementedError("Not implemented yet")
 
-    def _img_to_pdf(self, image: Image | Path | str, output: PDFOutput, scale: float = 1) -> PDFOutput:
+    def _img_to_pdf(self, image: Image | Path | str, output: PDFOutput | None, scale: float = 1, dpi=96) -> PDFOutput:
         pdf = FPDF()
         pdf.add_page()
         if isinstance(image, (Path, str)):
             image = PIL.Image.open(image)
         if scale != 1:
-            pdf.image(image, w=image.width * scale, h=image.height * scale)
+            pdf.image(image, w=image.width * scale, h=image.height * scale, keep_aspect_ratio=True)
         else:
-            pdf.image(image)
+            scale = 0.1
+            image = contain(image, A4DPI[dpi])
+            pdf.image(image, keep_aspect_ratio=True, h=pdf.eph, w=pdf.epw)
         imgpdf = PdfReader(BytesIO(pdf.output()))
         writer = PdfWriter()
         writer.append(imgpdf)
-        success, _ = writer.write(cast(StreamOrPath, output))
+        if output is None:
+            output = tempfile.SpooledTemporaryFile(dir=self.tmpdir)
+        success, output = writer.write(cast(StreamOrPath, output))
         if not success and isinstance(output, (str, Path)):
             raise ValueError(f"Failed to write the output file: {output}")
-
         return output
 
     def _merge(self, files: Sequence[PDFInput], output: PDFOutput, names: Sequence[str] | None = None) -> PDFOutput:
