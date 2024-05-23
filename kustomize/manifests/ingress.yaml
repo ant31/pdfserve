@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pdfserve
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: pdfserve.lza.sh
+    http:
+      paths:
+      - backend:
+          service:
+            name: pdfserve
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+
+  tls:
+    - hosts:
+        - pdfserve.lza.sh
+      secretName: pdfserve-certs

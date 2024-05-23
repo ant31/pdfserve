@@ -61,7 +61,6 @@ class SessionMixin:
                 config = cls.default_config()
             cls._config = config
             cls.close()
-        return None
 
     @property
     def config(self) -> ClientConfig:

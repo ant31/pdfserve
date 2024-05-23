@@ -1,0 +1,28 @@
+app:
+  env: production
+
+sentry:
+  dsn: null
+  environment: production
+  traces_sample_rate: null
+
+server:
+  cors:
+    allow_credentials: false
+    allow_headers:
+    - '*'
+    allow_methods:
+    - '*'
+    allow_origin_regex: '^https://.*\.lza.sh?$'
+    allow_origins:
+    - http://localhost:8080
+    - http://localhost:8000
+    - http://localhost
+  host: 0.0.0.0
+  middlewares:
+    - cors
+  port: 8080
+  token: ''
+
+logging:
+  level: info
