@@ -13,10 +13,10 @@ from urllib.parse import urlparse
 import PIL.Image
 from fpdf import FPDF
 from PIL.Image import Image
+from PIL.ImageOps import contain
+from pillow_heif import register_heif_opener
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, field_validator  # , model_serializer
 from pypdf import PdfReader, PdfWriter
-from pillow_heif import register_heif_opener
-from PIL.ImageOps import contain
 
 from pdfserve.client.filedl import DownloadClient
 
@@ -377,7 +377,17 @@ class PdfTransform:
     async def load_files(
         self, files: Sequence[PDFInput | PdfFileInfo | Image], dest_dir: str = "", use_temporary: bool = True
     ) -> Sequence[PdfFileInfo]:
-        return await asyncio.gather(*[self.load(f, dest_dir=dest_dir, use_temporary=use_temporary) for f in files])
+        # @TODO user worker pool/deque
+        res = []
+        n = 5
+        split_list = [files[i * n : (i + 1) * n] for i in range((len(files) + n - 1) // n)]
+        for split_files in split_list:
+            res.append(
+                await asyncio.gather(
+                    *[self.load(f, dest_dir=dest_dir, use_temporary=use_temporary) for f in split_files]
+                )
+            )
+        return [x for subres in res for x in subres]
 
     async def merge(
         self,

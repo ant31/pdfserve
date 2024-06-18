@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 from email.message import EmailMessage
@@ -87,7 +88,7 @@ class DownloadClient(BaseClient):
             filename = params.get("filename", "")
         if not filename:
             filename = unquote(PurePath(source_path).name)
-
+        await asyncio.sleep(1)
         content = await resp.content.read()
 
         if output and isinstance(output, IOBase):
