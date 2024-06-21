@@ -111,3 +111,9 @@ temporal-init-attributes:
 	temporal operator search-attribute create --name actionTriggers --type KeywordList  -n $(NAMESPACE)
 	temporal operator search-attribute create --name productName    --type keyword      -n $(NAMESPACE)
 	temporal operator search-attribute create --name userEmail      --type keyword      -n $(NAMESPACE)
+
+docker-push: docker-build
+	docker push img.conny.dev/oss/pdfserve:latest
+
+docker-build:
+	docker build -t img.conny.dev/oss/pdfserve:latest .
