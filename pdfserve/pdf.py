@@ -299,7 +299,7 @@ class PdfTransform:
         self._files = []
 
     def reload(self):
-        self.files = []
+        self._files = []
 
     @property
     async def files(self) -> Sequence[PdfFileInfo]:
@@ -339,6 +339,7 @@ class PdfTransform:
             if info.content:
                 info.pdf = info.content
             elif info.path:
+                logger.info("Loading pdf: %s", info.path)
                 info.pdf = info.path
         if info.pdf is None:
             raise ValueError(f"Invalid file: {info}, missing content or path or pdf")
@@ -356,6 +357,7 @@ class PdfTransform:
             content=finfo.content,
             image=None,
         )
+        logger.info("Downloaded file: %s", p)
         return await self.load_image(p)
 
     async def load_image(self, pdfinfo: PdfFileInfo) -> PdfFileInfo:
@@ -372,6 +374,8 @@ class PdfTransform:
             logger.debug("Failed to open image: %s", e)
         if pdfinfo.image:
             pdfinfo.pdf = self._img_to_pdf(pdfinfo.image, None, scale=pdfinfo.scale, dpi=self.dpi)
+            pdfinfo.image.close()
+            pdfinfo.image = None
         return pdfinfo
 
     async def load_files(
@@ -413,10 +417,13 @@ class PdfTransform:
         if outline and not names:
             names = [str(f.filename) for f in await self.files]
         if not output:
-            output = tempfile.SpooledTemporaryFile(dir=self.tmpdir)  # pylint: disable=consider-using-with
+            output = tempfile.SpooledTemporaryFile(
+                max_size=1000000, dir=self.tmpdir
+            )  # pylint: disable=consider-using-with
 
         logger.info("Merging: %s, outline: %s", str(contents), names)
         result = self._merge(contents, output=output, names=names)
+        logger.info("Merged to: %s", output)
         if isinstance(output, (str, Path)):
             return PdfFileInfo(filename=Path(output).name, path=Path(output))
         return PdfFileInfo(filename=name, content=result, pdf=result)

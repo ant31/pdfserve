@@ -4,6 +4,7 @@
 import logging
 import os
 import tempfile
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
@@ -85,13 +86,18 @@ async def merge_pdf(
     """
     inputs = prepare_files(files)
     logger.info("Merging: %s, outline: %s", str(inputs), outline)
+    tmpdir = tempfile.TemporaryDirectory()
+    tmpdirname = tmpdir.name
     with tempfile.NamedTemporaryFile(suffix=".pdf", mode="w+b", delete=False) as tmpf:
         background_tasks.add_task(cleanup, tmpf)
-        pt = PdfTransform(files=inputs, dest_dir="", use_temporary=True, dpi=dpi)
-        output = await pt.merge(name=name, output=tmpf.file, outline=outline)
+        background_tasks.add_task(cleanup, tmpdir)
+        logger.info("TempDir: %s", tmpdirname)
+        pt = PdfTransform(files=inputs, dest_dir=tmpdirname, tmpdir=tmpdirname, use_temporary=False, dpi=dpi)
+        output = await pt.merge(name=name, output=tmpf.name, outline=outline)
+        time.sleep(10)
         if output is None:
             raise ValueError("No output")
-        return FileResponse(tmpf.name, media_type="application/pdf", filename=output.filename)
+    return FileResponse(tmpf.name, media_type="application/pdf", filename=output.filename)
 
 
 async def stamp_all(

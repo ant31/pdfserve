@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import uuid
 from email.message import EmailMessage
 from io import IOBase
 from pathlib import Path, PurePath
@@ -79,7 +80,7 @@ class DownloadClient(BaseClient):
         resp.raise_for_status()
 
         filename: str = ""
-
+        logger.info("Downloaded file to dir: %s", dest_dir)
         content_disposition = resp.headers.get("Content-Disposition")
         if content_disposition:
             msg = EmailMessage()
@@ -88,17 +89,19 @@ class DownloadClient(BaseClient):
             filename = params.get("filename", "")
         if not filename:
             filename = unquote(PurePath(source_path).name)
-        await asyncio.sleep(1)
         content = await resp.content.read()
 
         if output and isinstance(output, IOBase):
             output.write(content)
             fd = FileInfo(content=output, filename=filename, source=url)
             return fd
-        if output and isinstance(output, (Path, str)):
+        if output and isinstance(output, (Path, str)) and str(output) != "" and str(output) != ".":
             dest_path = output
         else:
-            dest_path = PurePath(dest_dir).joinpath(filename)
+            if filename == "":
+                filename = uuid.uuid4().hex
+            dest_path = PurePath(dest_dir).joinpath(f"{uuid.uuid4().hex}-{filename}")
+        logger.info("Downloaded file to %s", dest_path)
         async with aiofiles.open(dest_path, "wb") as fopen:
             await fopen.write(content)
         fd = FileInfo(filename=filename, path=dest_path, source=url)
