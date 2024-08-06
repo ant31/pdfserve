@@ -62,8 +62,8 @@ pylint:
 
 check: black-test isort-check poetry-check pylint pyre-check
 
-pyre:
-	poetry run pyre
+pyre: pyre-check
+
 
 pyre-check:
 	poetry run pyre --noninteractive check 2>/dev/null
@@ -111,3 +111,9 @@ temporal-init-attributes:
 	temporal operator search-attribute create --name actionTriggers --type KeywordList  -n $(NAMESPACE)
 	temporal operator search-attribute create --name productName    --type keyword      -n $(NAMESPACE)
 	temporal operator search-attribute create --name userEmail      --type keyword      -n $(NAMESPACE)
+
+docker-push: docker-build
+	docker push img.conny.dev/oss/pdfserve:latest
+
+docker-build:
+	docker build -t img.conny.dev/oss/pdfserve:latest .

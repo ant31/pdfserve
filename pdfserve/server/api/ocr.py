@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from pdfserve.version import VERSION
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/ocr", tags=["ocr"])
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +16,6 @@ class VersionResp(BaseModel):
     version: str = Field(...)
 
 
-@router.get("/", tags=["info"])
+@router.get("/")
 async def index():
-    return await version()
-
-
-@router.get("/version", tags=["info"], response_model=VersionResp)
-async def version() -> VersionResp:
-    return VersionResp(version=VERSION.app_version)
+    return VERSION.to_dict()

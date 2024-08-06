@@ -11,14 +11,13 @@ from typing import IO, Any, BinaryIO, Literal, Sequence, TypeAlias, cast
 from urllib.parse import urlparse
 
 import PIL.Image
+from ant31box.clients import filedl_client
 from fpdf import FPDF
 from PIL.Image import Image
+from PIL.ImageOps import contain
+from pillow_heif import register_heif_opener
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, field_validator  # , model_serializer
 from pypdf import PdfReader, PdfWriter
-from pillow_heif import register_heif_opener
-from PIL.ImageOps import contain
-
-from pdfserve.client.filedl import DownloadClient
 
 register_heif_opener()
 StreamOrPath: TypeAlias = Path | str | BinaryIO | IO[Any]
@@ -205,7 +204,8 @@ class BaseCustomStamp(BaseStamp):
         pdf = FPDF()
         pdf.add_page(format=self.page_format)
         position = self.get_position(pdf)
-        pdf.set_fill_color(r=self.background_color.r, g=self.background_color.g, b=self.background_color.b)
+        if self.background:
+            pdf.set_fill_color(r=self.background_color.r, g=self.background_color.g, b=self.background_color.b)
         pdf.set_xy(position.x, position.y)
         with pdf.local_context(fill_opacity=self.opacity, stroke_opacity=self.opacity):
             self.render_pdf(pdf)
@@ -232,7 +232,7 @@ class StampImage(BaseCustomStamp):
             parsedurl = urlparse(image)
             if parsedurl.scheme in ["http", "https"]:
                 with tempfile.SpooledTemporaryFile(dir=tmpdir) as tmp:
-                    finfo = await DownloadClient().download(str(image), output=tmp)
+                    finfo = await filedl_client().download(str(image), output=tmp)
                     if finfo.content:
                         image = finfo.content
                     elif finfo.path:
@@ -299,7 +299,7 @@ class PdfTransform:
         self._files = []
 
     def reload(self):
-        self.files = []
+        self._files = []
 
     @property
     async def files(self) -> Sequence[PdfFileInfo]:
@@ -348,7 +348,7 @@ class PdfTransform:
         tmp = Path("")
         if use_temporary:
             tmp = tempfile.SpooledTemporaryFile(dir=self.tmpdir)  # pylint: disable=consider-using-with
-        finfo = await DownloadClient().download(str(source), dest_dir=dest_dir, output=tmp)
+        finfo = await filedl_client().download(str(source), dest_dir=dest_dir, output=tmp)
         p = PdfFileInfo(
             filename=str(finfo.filename),
             source=finfo.source,
@@ -377,7 +377,17 @@ class PdfTransform:
     async def load_files(
         self, files: Sequence[PDFInput | PdfFileInfo | Image], dest_dir: str = "", use_temporary: bool = True
     ) -> Sequence[PdfFileInfo]:
-        return await asyncio.gather(*[self.load(f, dest_dir=dest_dir, use_temporary=use_temporary) for f in files])
+        # @TODO user worker pool/deque
+        res = []
+        n = 5
+        split_list = [files[i * n : (i + 1) * n] for i in range((len(files) + n - 1) // n)]
+        for split_files in split_list:
+            res.append(
+                await asyncio.gather(
+                    *[self.load(f, dest_dir=dest_dir, use_temporary=use_temporary) for f in split_files]
+                )
+            )
+        return [x for subres in res for x in subres]
 
     async def merge(
         self,
@@ -447,7 +457,7 @@ class PdfTransform:
         writer = PdfWriter()
         writer.append(imgpdf)
         if output is None:
-            output = tempfile.SpooledTemporaryFile(dir=self.tmpdir)
+            output = tempfile.SpooledTemporaryFile(dir=self.tmpdir)  # pylint: disable=consider-using-with
         success, output = writer.write(cast(StreamOrPath, output))
         if not success and isinstance(output, (str, Path)):
             raise ValueError(f"Failed to write the output file: {output}")
