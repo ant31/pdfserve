@@ -7,9 +7,9 @@ logging:
     disable_existing_loggers: false
     formatters:
       default:
-        (): pdfserve.logutils.DefaultFormatter
+        (): ant31box.logutils.DefaultFormatter
         fmt: '%(levelprefix)s %(message)s'
-        use_colors: null
+        use_colors: true
     handlers:
       default:
         class: logging.StreamHandler
@@ -17,24 +17,19 @@ logging:
         level: INFO
         stream: ext://sys.stdout
     loggers:
+      ant31box:
+        handlers:
+        - default
+        level: INFO
+        propagate: true
       pdfserve:
-        handlers:
-        - default
-        level: INFO
-        propagate: true
-      temporalio:
-        handlers:
-        - default
-        level: INFO
-        propagate: true
-      temporalloop:
         handlers:
         - default
         level: INFO
         propagate: true
     version: 1
   use_colors: true
-sentry:
+  sentry:
   dsn: null
   environment: null
   release: null

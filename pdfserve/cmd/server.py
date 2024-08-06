@@ -1,22 +1,25 @@
+#!/usr/bin/env python3
+#!/usr/bin/env python3
 import logging
 
 import click
 import uvicorn
+from ant31box.config import LOG_LEVELS
+from ant31box.init import init
 
-from pdfserve.config import LOG_LEVELS, Config, GConfig
-from pdfserve.init import init
-from pdfserve.server.server import serve
+from pdfserve.config import Config
+from pdfserve.config import config as confload
 
 LEVEL_CHOICES = click.Choice(list(LOG_LEVELS.keys()))
-logger = logging.getLogger("pdfserve.info")
+logger = logging.getLogger("ant31box.info")
 
 
 def run_server(config: Config):
     logger.info("Starting server")
     click.echo(f"{config.server.model_dump()}")
-    init("fastapi")
+    init(config.conf, "fastapi")
     uvicorn.run(
-        serve,
+        config.server.server,
         host=config.server.host,
         port=config.server.port,
         log_level=config.logging.level,
@@ -79,7 +82,7 @@ def server(
     log_level: str,
     log_config: str,
 ) -> None:
-    _config = GConfig(config)
+    _config = confload(config)
     if host:
         _config.server.host = host
     if port:

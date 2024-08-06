@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import click
+from ant31box.cmd.default_config import default_config
+from ant31box.cmd.version import version
 
-from .default_config import default_config
+from pdfserve.config import config
+from pdfserve.version import VERSION
+
 from .merge import merge
 from .server import server
 from .stamp import stampcli
-from .version import version
 
 
 @click.group()
@@ -15,6 +18,8 @@ def cli(ctx: click.Context) -> None:
 
 
 def main():
+    _ = VERSION
+    _ = config()
     # start the FastAPI server
     cli.add_command(server)
     # Display version

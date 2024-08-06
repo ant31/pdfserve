@@ -1,46 +1,40 @@
 #!/usr/bin/env python3
 import os
 
-from pdfserve.config import GConfig
+from pdfserve.config import config
 
 
 def test_config_test_env():
-    assert GConfig().app.env == "test"
+    assert config().app.env == "test"
 
 
 def test_config_fields():
-    assert GConfig().sentry.dsn == None
-    assert GConfig().server.port == 8080
-    assert GConfig().logging.level == "info"
-    assert GConfig().conf.app.env == "test"
+    assert config().sentry.dsn == None
+    assert config().server.port == 8080
+    assert config().logging.level == "info"
+    assert config().conf.app.env == "test"
 
 
 def test_config_reinit():
-    conf = GConfig().dump()
-    GConfig.reinit()
-    assert GConfig().dump() == conf
+    conf = config().dump()
+    assert config().dump() == conf
     # Changes are ignored without reinit
-    GConfig("tests/data/config-2.yaml")
-    assert GConfig().dump() == conf
+    assert config("tests/data/config-2.yaml").dump() == conf
     # Changes are applied after reinit
-    GConfig.reinit()
-    GConfig("tests/data/config-2.yaml")
-    assert GConfig().dump() != conf
+    config("tests/data/config-2.yaml", reload=True)
+    assert config().dump() != conf
 
 
 def test_config_path_load():
-    GConfig.reinit()
-    GConfig("tests/data/config-2.yaml")
-    assert GConfig().app.env == "test-2"
+    config("tests/data/config-2.yaml", reload=True)
+    assert config().app.env == "test-2"
 
 
 def test_config_path_load_from_env(monkeypatch):
-    GConfig.reinit()
     monkeypatch.setattr(os, "environ", {"PDFSERVE_CONFIG": "tests/data/config-2.yaml"})
-    assert GConfig().app.env == "test-2"
+    assert config(reload=True).app.env == "test-2"
 
 
 def test_config_path_failed_path_fallback():
-    GConfig.reinit()
-    GConfig("tests/data/config-dontexist.yaml")
-    assert GConfig().app.env == "dev"
+    config("tests/data/config-dontexist.yaml", reload=True)
+    assert config().app.env == "dev"

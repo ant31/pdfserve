@@ -62,8 +62,8 @@ pylint:
 
 check: black-test isort-check poetry-check pylint pyre-check
 
-pyre:
-	poetry run pyre
+pyre: pyre-check
+
 
 pyre-check:
 	poetry run pyre --noninteractive check 2>/dev/null
