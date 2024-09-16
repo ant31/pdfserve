@@ -38,6 +38,14 @@ A4DPI: dict[int, tuple[int, int]] = {  # A4 size in pixels at N DPI
 }
 
 
+def userspace_to_mm(val) -> float:
+    """Userspace to mm conversion
+    1 userspace = 1/72 inch
+    1 inch = 25.4 mm
+    """
+    return val * 0.352777777777777777777777777778
+
+
 class PdfFileInfo(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     filename: str = Field(default="", description="Name of the pdf")
@@ -200,9 +208,14 @@ class BaseCustomStamp(BaseStamp):
     def render_pdf(self, pdf: FPDF) -> FPDF:
         return pdf
 
-    def to_pdf(self) -> PdfReader:
+    def to_pdf(
+        self, page_format: tuple[float, float] | Literal["a3", "a4", "a5", "letter", "legal"] | None = None
+    ) -> PdfReader:
         pdf = FPDF()
-        pdf.add_page(format=self.page_format)
+        if page_format is not None:
+            pdf.add_page(format=page_format)
+        else:
+            pdf.add_page(format=self.page_format)
         position = self.get_position(pdf)
         if self.background:
             pdf.set_fill_color(r=self.background_color.r, g=self.background_color.g, b=self.background_color.b)
@@ -277,7 +290,10 @@ class StampPdf(BaseStamp):
 
     input_stamp: Path | str = Field(...)
 
-    def to_pdf(self) -> PdfReader:
+    def to_pdf(
+        self, page_format: tuple[float, float] | Literal["a3", "a4", "a5", "letter", "legal"] | None = None
+    ) -> PdfReader:
+        _ = page_format
         return PdfReader(self.input_stamp)
 
 
@@ -486,7 +502,7 @@ class PdfTransform:
                 base_name = Path(cast(str | Path, outputs[0]))
             else:
                 base_name = Path(f"{prefix}_{uuid.uuid4()}.pdf")
-        print(base_name)
+
         suffix = base_name.suffix
         i = 0
         if outputs:
@@ -501,17 +517,15 @@ class PdfTransform:
                 res_outputs.append(output)
                 i += 1
         name = base_name
-        print(names, res_outputs)
+
         for j in range(i, n):
             if j > 0:
                 name = Path(str(base_name).replace(suffix, f"_{j}{suffix}"))
-            print(j, name)
             names.append(name)
             if outputs:
                 res_outputs.append(name)
             else:
                 res_outputs.append(None)
-        print(names, res_outputs)
         return names, res_outputs
 
     async def stamp(
@@ -575,10 +589,12 @@ class PdfTransform:
         #     print(output.closed, output.name, output.mode)
         writer = PdfWriter(clone_from=cast(StreamOrPath, fileinput))
         p = 0
-        stamp_pdf = stamp.to_pdf().pages[0]
+
         for page in writer.pages:
             if pages and p not in pages:
                 continue
+            page_format = (userspace_to_mm(page.bleedbox.width), userspace_to_mm(page.bleedbox.height))
+            stamp_pdf = stamp.to_pdf(page_format=page_format).pages[0]
             page.merge_page(stamp_pdf, over=stamp.over)
         success, _ = writer.write(cast(StreamOrPath, output))
         if not success and isinstance(output, (str, Path)):
