@@ -479,16 +479,29 @@ class PdfTransform:
             raise ValueError(f"Failed to write the output file: {output}")
         return output
 
+    def _merge_one_doc(self, merger: PdfWriter, fileinput: PDFInput, outline: str | None = None) -> PdfWriter:
+        with tempfile.SpooledTemporaryFile(dir=self.tmpdir) as output:
+            merger.write(output)
+            m = PdfWriter(clone_from=output)
+            try:
+                m.append(fileinput, outline_item=outline)
+            except AttributeError:
+                m = PdfWriter(clone_from=output)
+                buf = PdfReader(cast(StreamOrPath, fileinput))
+                buf.add_form_topname("f1")
+                m.append(fileobj=buf, outline_item=outline)
+        return m
+
     def _merge(self, files: Sequence[PDFInput], output: PDFOutput, names: Sequence[str] | None = None) -> PDFOutput:
         merger = PdfWriter()
         if not files:
             raise ValueError("No files to merge")
         if names and (len(names) == len(files)):
             for f, n in zip(files, names):
-                merger.append(cast(StreamOrPath, f), outline_item=n)
+                merger = self._merge_one_doc(merger, f, n)
         else:
             for f in files:
-                merger.append(cast(StreamOrPath, f))
+                merger = self._merge_one_doc(merger, f)
         _, res = merger.write(cast(StreamOrPath, output))
         return res
 
