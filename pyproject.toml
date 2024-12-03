@@ -39,7 +39,7 @@ aiofiles = "*"
 aioshutil = "^1.3"
 python-multipart = "^0.0.6"
 types-fpdf2 = "^2.7.8.20240217"
-pillow-heif = "^0.16.0"
+pillow-heif = "^0.21.0"
 [tool.poetry.dev-dependencies]
 black = "*"
 ipython = "*"
