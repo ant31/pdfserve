@@ -4,6 +4,7 @@ mise.*
 *.pdf
 .venv
 .env
+*.xml
 report.xml
 .python-version
 localconfig.yaml

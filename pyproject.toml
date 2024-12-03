@@ -19,7 +19,7 @@ pyyaml = "*"
 paramiko = "*"
 sentry-sdk = {extras = ["fastapi"], version = "*"}
 ant31box = {git = "https://github.com/ant31/ant31box", extras=["s3"], branch="main"}
-opticr = {git = "https://github.com/lzayep/opticr", branch="googlevision"}
+opticr = {git = "https://github.com/lzayep/opticr", branch="main"}
 
 # temporalloop = {path = "../temporalrunner", develop = true}
 aiohttp = {extras = ["speedups"], version = "*"}
@@ -47,7 +47,7 @@ pylint = "*"
 pyre-check = "*"
 types-requests = "*"
 isort = "*"
-pytest = "<8"
+pytest = "*"
 coverage = "*"
 pytest-cov = "*"
 bumpversion = "*"
