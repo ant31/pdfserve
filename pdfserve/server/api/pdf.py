@@ -106,7 +106,7 @@ async def stamp_all(
     with tempfile.NamedTemporaryFile(suffix=".pdf", mode="w+b", delete=False) as tmpf:
         background_tasks.add_task(cleanup, tmpf)
         pt = PdfTransform(files=inputs, dest_dir="", use_temporary=True)
-        if merge:
+        if merge and len(inputs) > 1:
             merged = await pt.merge()
             pt.set_files([merged])
         outputs = await pt.stamp(name=name, stamp=stamp, outputs=[tmpf.file])
