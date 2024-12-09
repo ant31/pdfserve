@@ -18,6 +18,7 @@ from PIL.ImageOps import contain
 from pillow_heif import register_heif_opener
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, field_validator  # , model_serializer
 from pypdf import PdfReader, PdfWriter
+from pypdf.generic import ArrayObject
 
 register_heif_opener()
 StreamOrPath: TypeAlias = Path | str | BinaryIO | IO[Any]
@@ -600,12 +601,20 @@ class PdfTransform:
         """
         # if not isinstance(output, (str, Path)):
         #     print(output.closed, output.name, output.mode)
-        writer = PdfWriter(clone_from=cast(StreamOrPath, fileinput))
+        logger.info(f"start cloning: {fileinput}")
+        reader = PdfReader(cast(StreamOrPath, fileinput))
+        writer = PdfWriter()
+        for page in reader.pages:
+            page.annotations = ArrayObject()
+            writer.add_page(page)
+
+        logger.info(f"start stamping: {fileinput}")
         p = 0
 
         for page in writer.pages:
             if pages and p not in pages:
                 continue
+            p += 1
             page_format = (userspace_to_mm(page.bleedbox.width), userspace_to_mm(page.bleedbox.height))
             stamp_pdf = stamp.to_pdf(page_format=page_format).pages[0]
             page.merge_page(stamp_pdf, over=stamp.over)
