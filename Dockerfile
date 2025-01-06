@@ -16,7 +16,7 @@ RUN rm -rf /root/.cargo
 # It builds the containers 2x faster on code change
 COPY . $workdir
 # Most of dependencies are already installed, it only install the app
-RUN poetry install --no-dev
+RUN poetry install --without dev
 RUN apt-get remove --purge -y libffi-dev build-essential libssl-dev git rustc cargo
 
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus

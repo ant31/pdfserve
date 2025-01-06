@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import tarfile
 import tempfile
 import uuid
 from enum import StrEnum
@@ -456,8 +457,74 @@ class PdfTransform:
             name = f"img_{uuid.uuid4()}.pdf"
         return await self.merge(name, output, outline=False)
 
-    def split(self) -> list[PDFOutput]:
-        raise NotImplementedError("Not implemented yet")
+    async def tarball(self, name: str, files: list[PdfFileInfo], output: Path | None = None) -> PdfFileInfo:
+        tmpf = None
+        if not output:
+            tmpf = tempfile.SpooledTemporaryFile(dir=self.tmpdir, suffix="tar.gz")
+            tarball = tarfile.open(fileobj=tmpf, mode="w:gz")
+        else:
+            tarball = tarfile.open(output, mode="w:gz")
+        for f in files:
+            if f.path:
+                tarball.add(f.path)
+            elif isinstance(f.content, IOBase):
+                with tempfile.NamedTemporaryFile(dir=self.tmpdir, mode="wb", suffix=".pdf") as tmp:
+                    f.content.seek(0)
+                    tmp.write(f.content.read())
+                    tmp.flush()
+                    tarball.add(tmp.name, arcname=f.filename)
+
+        tarball.close()
+        if not str(name).endswith(".tar.gz"):
+            name = str(Path(name).with_suffix(".tar.gz"))
+
+        if isinstance(output, (str, Path)):
+            return PdfFileInfo(filename=str(name), path=Path(output))
+        elif tmpf is not None:
+            tmpf.seek(0)
+            return PdfFileInfo(filename=str(name), content=tmpf, pdf=None)
+        else:
+            raise ValueError("Invalid output")
+
+    async def split(self, split_pages: list[tuple[int, int]], name: str = "") -> list[PdfFileInfo]:
+        """
+        Split the pdf file into multiple files.
+
+        - **split_page**: the pages to split, in the format "1-2,3,4-5"
+        """
+
+        content = (await self.files)[0]
+        if not content.pdf:
+            raise ValueError("No pdf content to split")
+
+        if not name:
+            if content.filename:
+                name = content.filename
+            else:
+                name = f"split_{uuid.uuid4()}.pdf"
+        pname = Path(str(name))
+        # pylint: disable=consider-using-with
+
+        logger.info("Splitting: %s, pages: %s", str(content), split_pages)
+
+        results = []
+        reader = PdfReader(cast(StreamOrPath, content.pdf))
+
+        for start, end in split_pages:
+            output = Path(name).with_stem(f"{pname.stem}_{start}-{end}")
+            file = tempfile.SpooledTemporaryFile(dir=self.tmpdir, suffix=".pdf")
+            writer = PdfWriter()
+            if start > end:
+                raise ValueError(f"Invalid split format start page is greater than end page {start}>{end}")
+            for i in range(start, end + 1):
+                if i > len(reader.pages):
+                    raise ValueError(f"Invalid page number {i} for {content.filename}")
+                writer.add_page(reader.pages[i])
+
+            _, _ = writer.write(cast(StreamOrPath, file))
+            info = PdfFileInfo(filename=Path(output).name, content=file)
+            results.append(info)
+        return results
 
     def _img_to_pdf(self, image: Image | Path | str, output: PDFOutput | None, scale: float = 1, dpi=96) -> PDFOutput:
         pdf = FPDF()
@@ -623,3 +690,6 @@ class PdfTransform:
             raise ValueError(f"Failed to write the output file: {output}")
 
         return output
+
+
+# pylint: disable=dangerous-default-value

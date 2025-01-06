@@ -4,6 +4,7 @@
 import logging
 import os
 import tempfile
+from pathlib import Path
 from typing import Annotated
 
 from ant31box.server.utils import form_body
@@ -13,6 +14,7 @@ from fastapi.responses import FileResponse
 from pydantic import Json
 
 from pdfserve.pdf import PdfFileInfo, PdfTransform, StampImage, StampText
+from pdfserve.pdf_utils import parse_split_pages
 
 router = APIRouter()
 
@@ -45,6 +47,56 @@ def cleanup(tmpf):
             os.unlink(tmpf.name)
         except FileNotFoundError:
             pass
+
+
+@router.post(
+    "/split",
+    response_class=FileResponse,
+    response_description="The split PDF files inside a Gunzipped Tarball",
+    summary="Split PDF files into multiple base on user defined criteria",
+    responses={
+        200: {
+            "description": "The split PDF files inside a Gunzipped Tarball",
+            "content": {"application/gzip": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+async def split_pdf(
+    background_tasks: BackgroundTasks,
+    pages: Annotated[str, Query(description="page to split the pdf files, e.g: 1-3,4,5-9' ")],
+    splitfile: Annotated[
+        UploadFile | str,
+        File(
+            title="Pdf to split",
+            description="The PDF file to split",
+        ),
+    ] = "",
+    name: Annotated[
+        str,
+        Query(
+            description=(
+                "the name of the uploaded file"
+                "if not provided and can't be determinied a random name will be generated"
+            )
+        ),
+    ] = "",
+) -> FileResponse:
+    inputs = prepare_files([splitfile])
+    logger.info("split: %s, split: %s", name, str(pages))
+    with tempfile.NamedTemporaryFile(suffix=".tar.gz", mode="w+b", delete=False) as tmpf:
+        background_tasks.add_task(cleanup, tmpf)
+        pt = PdfTransform(files=inputs, dest_dir="", use_temporary=True)
+        if not name:
+            name = (await pt.files)[0].filename
+        split_pages = parse_split_pages(pages)
+        outputs = await pt.split(name=name, split_pages=split_pages)
+        if not outputs:
+            raise ValueError("No output")
+
+        tarballname = Path(name).with_suffix(".tar.gz")
+        res = await pt.tarball(files=outputs, name=tarballname, output=tmpf.name)
+        print(res)
+        return FileResponse(tmpf.name, media_type="application/tar+gzip", filename=res.filename)
 
 
 # pylint: disable=dangerous-default-value

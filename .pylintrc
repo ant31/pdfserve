@@ -216,7 +216,7 @@ redefining-builtins-modules=six.moves,future.builtins
 [BASIC]
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,j,k,ex,Run,_,s3
+good-names=i,j,k,ex,Run,_,s3,db,q,id,op,es,ml
 
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata
