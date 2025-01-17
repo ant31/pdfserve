@@ -116,4 +116,4 @@ docker-push: docker-build
 	docker push img.conny.dev/oss/pdfserve:latest
 
 docker-build:
-	docker build -t img.conny.dev/oss/pdfserve:latest .
+	docker build  --network host -t img.conny.dev/oss/pdfserve:latest .
