@@ -511,7 +511,7 @@ class PdfTransform:
         reader = PdfReader(cast(StreamOrPath, content.pdf))
 
         for start, end in split_pages:
-            output = Path(name).with_stem(f"{pname.stem}_{start}-{end}")
+            output = Path(name).with_stem(f"{pname.stem}_{start+1}-{end+1}")
             file = tempfile.SpooledTemporaryFile(dir=self.tmpdir, suffix=".pdf")
             writer = PdfWriter()
             if start > end:
