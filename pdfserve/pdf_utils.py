@@ -20,7 +20,7 @@ def parse_split_pages(split_input) -> list[tuple[int, int]]:
                 raise ValueError("Invalid split format, start and end must be numbers")
             if int(start) > int(end):
                 raise ValueError("Invalid split format start page is greater than end page")
-            split_pages.append((int(start) - 1, int(end) -1))
+            split_pages.append((int(start) - 1, int(end) - 1))
         else:
             split_pages.append((int(part) - 1, int(part) - 1))
     return split_pages
