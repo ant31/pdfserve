@@ -1,7 +1,7 @@
 # pylint: disable=no-self-argument
 import logging
 import logging.config
-from typing import Any, Type
+from typing import Any
 
 import ant31box.config
 from ant31box.config import FastAPIConfigSchema, GConfig, LoggingConfigSchema, S3ConfigSchema
@@ -45,7 +45,7 @@ class ConfigSchema(ant31box.config.ConfigSchema):
 
 class Config(ant31box.config.Config[ConfigSchema]):
     _env_prefix = ENVPREFIX
-    __config_class__: Type[ConfigSchema] = ConfigSchema
+    __config_class__: type[ConfigSchema] = ConfigSchema
 
     @property
     def s3(self) -> S3ConfigSchema:

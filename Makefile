@@ -1,4 +1,4 @@
-.PHONY: black black-test check clean clean-build clean-pyc clean-test coverage install pylint pylint-quick pyre test publish poetry-check publish isort isort-check
+.PHONY: check clean clean-build clean-pyc clean-test coverage install pylint pylint-quick pyre test publish poetry-check publish isort isort-check
 
 
 VERSION := `cat VERSION`
@@ -60,7 +60,10 @@ pylint-quick:
 pylint:
 	poetry run pylint --rcfile=".pylintrc" $(package)
 
-check: black-test isort-check poetry-check pylint pyre-check
+
+lint: format-test isort-check ruff poetry-check
+small-check: format-test isort-check poetry-check
+check: lint pyright
 
 pyre: pyre-check
 
@@ -68,14 +71,14 @@ pyre: pyre-check
 pyre-check:
 	poetry run pyre --noninteractive check 2>/dev/null
 
-black:
-	poetry run black -t py312 tests $(package)
+format:
+	poetry run ruff format $(package)
 
-black-test:
-	poetry run black -t py312 tests $(package) --check
+format-test:
+	poetry run ruff format $(package) --check
 
 poetry-check:
-	poetry lock --check
+	poetry check --lock
 
 publish: clean
 	poetry build
@@ -83,9 +86,17 @@ publish: clean
 
 isort:
 	poetry run isort .
+	poetry run ruff check --select I $(package) tests --fix
 
 isort-check:
+	poetry run ruff check --select I $(package) tests
 	poetry run isort --diff --check .
+
+ruff:
+	poetry run ruff check
+
+fix: format isort
+	poetry run ruff check --fix
 
 .ONESHELL:
 pyrightconfig:
@@ -101,19 +112,22 @@ rename:
 	ack Pdfs -i -l | xargs -i{} sed -r -i "s/Pdfs/PDFServe/g" {}
 	ack Pdfs -i -l | xargs -i{} sed -r -i "s/PDFS/PDFSERVE/g" {}
 
-run-worker:
-	poetry run bin/pdfserve  looper --namespace pdfserve-dev-al  --host 127.0.0.1:7233 --config=localconfig.yaml
-
 run-server:
 	./bin/pdfserve server --config localconfig.yaml
 
-temporal-init-attributes:
-	temporal operator search-attribute create --name actionTriggers --type KeywordList  -n $(NAMESPACE)
-	temporal operator search-attribute create --name productName    --type keyword      -n $(NAMESPACE)
-	temporal operator search-attribute create --name userEmail      --type keyword      -n $(NAMESPACE)
 
-docker-push: docker-build
-	docker push img.conny.dev/oss/pdfserve:latest
+CONTAINER_REGISTRY=ghcr.io/ant31/$(package)
 
-docker-build:
-	docker build  --network host -t img.conny.dev/oss/pdfserve:latest .
+
+docker-push-local: docker-build-locall
+    docker push $(CONTAINER_REGISTRY):latest
+
+docker-build-local:
+    docker build --network=host -t $(CONTAINER_REGISTRY):latest .
+
+docker-push:
+	docker buildx build --push -t $(CONTAINER_REGISTRY):latest .
+
+BUMP ?= patch
+bump:
+	poetry run bump-my-version bump $(BUMP)

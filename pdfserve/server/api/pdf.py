@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # pylint: disable=no-name-in-module
 # pylint: disable=too-few-public-methods
+import contextlib
 import logging
 import os
 import tempfile
@@ -43,10 +44,8 @@ def cleanup(tmpf):
     if hasattr(tmpf, "cleanup"):
         tmpf.cleanup()
     else:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.unlink(tmpf.name)
-        except FileNotFoundError:
-            pass
 
 
 @router.post(
@@ -75,8 +74,7 @@ async def split_pdf(
         str,
         Query(
             description=(
-                "the name of the uploaded file"
-                "if not provided and can't be determinied a random name will be generated"
+                "the name of the uploaded fileif not provided and can't be determinied a random name will be generated"
             )
         ),
     ] = "",
@@ -115,13 +113,13 @@ async def split_pdf(
 async def merge_pdf(
     background_tasks: BackgroundTasks,
     files: Annotated[
-        list[UploadFile | str],
+        list[UploadFile | str] | None,
         File(
             default_factory=list,
             title="Files",
             description="a list of files to merge, can be a list of URL to download the file from or the uploaded file as binary object",
         ),
-    ] = [],
+    ] = None,
     name: Annotated[
         str, Query(description="the name of the merged file, if not provided, a random name will be generated")
     ] = "",
@@ -135,6 +133,8 @@ async def merge_pdf(
     - **files**: a list of files to merge, can be a list of URL to download the file from or the uploaded file as binary object
     - **outline**: if True, create an outline with the name of the file, if False, no outline will be added
     """
+    if files is None:
+        files = []
     inputs = prepare_files(files)
     logger.info("Merging: %s, outline: %s", str(inputs), outline)
     with tempfile.NamedTemporaryFile(suffix=".pdf", mode="w+b", delete=False) as tmpf:

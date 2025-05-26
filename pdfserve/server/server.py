@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from ant31box.server.server import Server, serve_from_config
 from fastapi import FastAPI
 
@@ -5,7 +7,7 @@ from pdfserve.config import config
 
 
 class PdfServer(Server):
-    _routers: set[str] = {"pdfserve.server.api.pdf:router", "pdfserve.server.api.ocr:router"}
+    _routers: ClassVar[set[str]] = {"pdfserve.server.api.pdf:router", "pdfserve.server.api.ocr:router"}
 
 
 # override this method to use a different server class/config

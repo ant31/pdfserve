@@ -9,7 +9,7 @@ def test_config_test_env():
 
 
 def test_config_fields():
-    assert config().sentry.dsn == None
+    assert config().sentry.dsn is None
     assert config().server.port == 8080
     assert config().logging.level == "info"
     assert config().conf.app.env == "test"

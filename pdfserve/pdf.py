@@ -5,10 +5,11 @@ import re
 import tarfile
 import tempfile
 import uuid
+from collections.abc import Sequence
 from enum import StrEnum
 from io import BytesIO, IOBase
 from pathlib import Path
-from typing import IO, Any, BinaryIO, Literal, Sequence, TypeAlias, cast
+from typing import IO, Any, BinaryIO, Literal, cast
 from urllib.parse import urlparse
 
 import PIL.Image
@@ -22,9 +23,9 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.generic import ArrayObject
 
 register_heif_opener()
-StreamOrPath: TypeAlias = Path | str | BinaryIO | IO[Any]
-PDFInput: TypeAlias = IOBase | StreamOrPath
-PDFOutput: TypeAlias = IOBase | StreamOrPath
+type StreamOrPath = Path | str | BinaryIO | IO[Any]
+type PDFInput = IOBase | StreamOrPath
+type PDFOutput = IOBase | StreamOrPath
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -163,8 +164,10 @@ def get_position(
     pdf: FPDF,
     position: Point | None,
     position_name: PositionEnum = PositionEnum.TOP_LEFT,
-    offset: Point = Point((0, 0)),
+    offset: Point | None = None,
 ) -> Point:
+    if offset is None:
+        offset = Point((0, 0))
     if not position:
         if position_name == PositionEnum.TOP_LEFT:
             position = Point((10, 10))
@@ -340,7 +343,7 @@ class PdfTransform:
     async def load(
         self, fileinput: PDFInput | PdfFileInfo | Image, dest_dir: str = "", use_temporary: bool = True
     ) -> PdfFileInfo:
-        if isinstance(fileinput, (str, Path)):
+        if isinstance(fileinput, str | Path):
             info = await self.download_file(fileinput, dest_dir=dest_dir, use_temporary=use_temporary)
         elif isinstance(fileinput, Image):
             info = PdfFileInfo(
@@ -435,7 +438,7 @@ class PdfTransform:
 
         logger.info("Merging: %s, outline: %s", str(contents), names)
         result = self._merge(contents, output=output, names=names)
-        if isinstance(output, (str, Path)):
+        if isinstance(output, str | Path):
             return PdfFileInfo(filename=Path(output).name, path=Path(output))
         return PdfFileInfo(filename=name, content=result, pdf=result)
 
@@ -478,7 +481,7 @@ class PdfTransform:
         if not str(name).endswith(".tar.gz"):
             name = str(Path(name).with_suffix(".tar.gz"))
 
-        if isinstance(output, (str, Path)):
+        if isinstance(output, str | Path):
             return PdfFileInfo(filename=str(name), path=Path(output))
         elif tmpf is not None:
             tmpf.seek(0)
@@ -511,7 +514,7 @@ class PdfTransform:
         reader = PdfReader(cast(StreamOrPath, content.pdf))
 
         for start, end in split_pages:
-            output = Path(name).with_stem(f"{pname.stem}_{start+1}-{end+1}")
+            output = Path(name).with_stem(f"{pname.stem}_{start + 1}-{end + 1}")
             file = tempfile.SpooledTemporaryFile(dir=self.tmpdir, suffix=".pdf")
             writer = PdfWriter()
             if start > end:
@@ -529,7 +532,7 @@ class PdfTransform:
     def _img_to_pdf(self, image: Image | Path | str, output: PDFOutput | None, scale: float = 1, dpi=96) -> PDFOutput:
         pdf = FPDF()
         pdf.add_page()
-        if isinstance(image, (Path, str)):
+        if isinstance(image, Path | str):
             image = PIL.Image.open(image)
         if scale != 1:
             pdf.image(image, w=image.width * scale, h=image.height * scale, keep_aspect_ratio=True)
@@ -543,7 +546,7 @@ class PdfTransform:
         if output is None:
             output = tempfile.SpooledTemporaryFile(dir=self.tmpdir)  # pylint: disable=consider-using-with
         success, output = writer.write(cast(StreamOrPath, output))
-        if not success and isinstance(output, (str, Path)):
+        if not success and isinstance(output, str | Path):
             raise ValueError(f"Failed to write the output file: {output}")
         return output
 
@@ -565,7 +568,7 @@ class PdfTransform:
         if not files:
             raise ValueError("No files to merge")
         if names and (len(names) == len(files)):
-            for f, n in zip(files, names):
+            for f, n in zip(files, names, strict=False):
                 merger = self._merge_one_doc(merger, f, n)
         else:
             for f in files:
@@ -579,7 +582,7 @@ class PdfTransform:
         names = []
         res_outputs = []
         if not base_name or str(base_name) == ".":
-            if outputs and isinstance(outputs[0], (str, Path)):
+            if outputs and isinstance(outputs[0], str | Path):
                 base_name = Path(cast(str | Path, outputs[0]))
             else:
                 base_name = Path(f"{prefix}_{uuid.uuid4()}.pdf")
@@ -589,7 +592,7 @@ class PdfTransform:
         if outputs:
             for output in outputs:
                 # Append name if output is a string or path
-                if isinstance(output, (str, Path)):
+                if isinstance(output, str | Path):
                     names.append(Path(output))
                 elif i == 0:
                     names.append(base_name)
@@ -643,7 +646,7 @@ class PdfTransform:
             if pages:
                 stamp_pages = pages[i]
             result = self._stamp_one_pdf(content, output, stamp, pages=stamp_pages)
-            if isinstance(output, (str, Path)):
+            if isinstance(output, str | Path):
                 results.append(PdfFileInfo(filename=names[i].name, path=Path(output)))
             else:
                 results.append(PdfFileInfo(filename=names[i].name, content=result, pdf=result))
@@ -686,7 +689,7 @@ class PdfTransform:
             stamp_pdf = stamp.to_pdf(page_format=page_format).pages[0]
             page.merge_page(stamp_pdf, over=stamp.over)
         success, _ = writer.write(cast(StreamOrPath, output))
-        if not success and isinstance(output, (str, Path)):
+        if not success and isinstance(output, str | Path):
             raise ValueError(f"Failed to write the output file: {output}")
 
         return output

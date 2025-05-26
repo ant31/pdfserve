@@ -27,15 +27,14 @@ async def stamp_all(
         if finfo.path is not None:
             with open(finfo.path, "rb") as f:
                 click.echo(f.read())
+        elif finfo.content is None:
+            click.echo("No content")
         else:
-            if finfo.content is None:
-                click.echo("No content")
-            else:
-                if isinstance(finfo.content, (Path, str)):
-                    raise ValueError(f"Content is not a file-like object: {finfo.content}")
-                finfo.content.seek(0)
-                click.echo(finfo.content.read())
-                finfo.content.close()
+            if isinstance(finfo.content, Path | str):
+                raise ValueError(f"Content is not a file-like object: {finfo.content}")
+            finfo.content.seek(0)
+            click.echo(finfo.content.read())
+            finfo.content.close()
     ctx.exit()
 
 

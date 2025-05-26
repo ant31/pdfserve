@@ -24,16 +24,14 @@ async def merge(ctx: click.Context, output: str, dest: str, files: list[str]) ->
     res = await pt.merge(output=Path(dest))
     if output == "json":
         click.echo(res.model_dump_json(indent=2))
+    elif res.path is not None:
+        with open(res.path, "rb") as f:
+            click.echo(f.read())
+    elif res.content is None:
+        click.echo("No content")
     else:
-        if res.path is not None:
-            with open(res.path, "rb") as f:
-                click.echo(f.read())
-        else:
-            if res.content is None:
-                click.echo("No content")
-            else:
-                if isinstance(res.content, (Path, str)):
-                    raise ValueError(f"Content is not a file-like object: {res.content}")
-                res.content.seek(0)
-                click.echo(res.content.read())
+        if isinstance(res.content, Path | str):
+            raise ValueError(f"Content is not a file-like object: {res.content}")
+        res.content.seek(0)
+        click.echo(res.content.read())
     ctx.exit()
