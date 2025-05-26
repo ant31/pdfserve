@@ -178,7 +178,8 @@ class ChatConverter:
         self,
         messages: list[ChatMessage],
         output: str | Path | None = None,
-        current_user_name: str | None = None,
+        display_name_override: str | None = None,
+        user_identifier_for_direction: str | None = None,
     ):
         """
         Initializes the ChatConverter.
@@ -188,41 +189,71 @@ class ChatConverter:
             output: Base path/name for output files (e.g., "my_chat" or "exports/my_chat").
                     Extensions will be added automatically (.html, .pdf).
                     If None, files are not written to disk, only returned as BytesIO.
-            current_user_name: Name to display for 'outgoing' messages.
+            display_name_override: Name to display for 'outgoing' messages. If None,
+                                   the message's original name or role is used.
+            user_identifier_for_direction: The name or role to identify as the 'user' for
+                                           determining outgoing messages. If None, inference is attempted.
         """
-        self.current_user_name = current_user_name
         self.messages: list[ChatMessage] = messages
-        self._raw_html_content: str | None = None  # Cache for generated HTML
         self.output_path: Path | None = None
         if output:
             self.output_path = Path(output).with_suffix("")
+        self._raw_html_content: str | None = None  # Cache for generated HTML
+
+        self.display_name_override = display_name_override
+        self._final_user_identifier_for_direction: str | None = user_identifier_for_direction
+
+        if not self._final_user_identifier_for_direction and self.messages:
+            # 1. Try to infer based on display_name_override matching a message author
+            if self.display_name_override:
+                for msg_item in self.messages:
+                    msg_author = msg_item.name or msg_item.role
+                    if msg_author and msg_author.lower() == self.display_name_override.lower():
+                        self._final_user_identifier_for_direction = msg_author
+                        break
+            
+            # 2. If still not found, try to infer based on common "user" or "me" roles/names
+            if not self._final_user_identifier_for_direction:
+                for msg_item in self.messages:
+                    msg_author = msg_item.name or msg_item.role
+                    if msg_author and msg_author.lower() in ["user", "me"]:
+                        self._final_user_identifier_for_direction = msg_author
+                        break
+
+            # 3. If still not found, use the first message's author
+            if not self._final_user_identifier_for_direction:
+                # Ensure messages[0] exists and has an author
+                if self.messages: # Should be true if we are in this block
+                    first_msg_author = self.messages[0].name or self.messages[0].role
+                    if first_msg_author: # Check first_msg_author is not None
+                        self._final_user_identifier_for_direction = first_msg_author
+        
+        logger.debug(f"Final user identifier for direction: {self._final_user_identifier_for_direction}")
+        logger.debug(f"Display name override: {self.display_name_override}")
 
     def _determine_message_sender_info(self, msg: ChatMessage) -> tuple[str, str]:
-        role_val = msg.role
-        direction_val = msg.direction
-        name_val = msg.name
+        """
+        Determines the effective direction and display author for a message.
+        """
+        message_actual_author = msg.name or msg.role or "Unknown" # Fallback for display if name/role are None
 
-        # Determine effective author first, as it's used in direction logic
-        eff_author = "User"
-        if name_val:
-            eff_author = name_val
-        elif role_val:
-            # Using capitalize consistent with previous logic.
-            eff_author = role_val.capitalize()
+        eff_direction = "ingoing"  # Default direction
 
-        # Determine effective direction
-        if direction_val:  # Explicit direction field takes highest precedence
-            eff_direction = direction_val.lower()
-        # If direction is not specified, infer based on author or role
-        elif eff_author == self.current_user_name or role_val == "user":
-            eff_direction = "outgoing"
-        else:  # Default for all other cases where direction is not specified
-            eff_direction = "ingoing"
-
+        # Use explicit direction if provided in the message
+        if msg.direction:
+            eff_direction = msg.direction.lower()
+        elif self._final_user_identifier_for_direction:
+            # Infer direction if not explicit and an identifier is set
+            if message_actual_author.lower() == self._final_user_identifier_for_direction.lower():
+                eff_direction = "outgoing"
+        
         # Determine display author
-        display_author = eff_author
+        display_author = message_actual_author # Default to the message's own identifier
+
         if eff_direction == "outgoing":
-            display_author = self.current_user_name if self.current_user_name else "user"
+            if self.display_name_override:
+                display_author = self.display_name_override
+            # If no display_name_override, display_author remains message_actual_author
 
         return eff_direction, display_author
 

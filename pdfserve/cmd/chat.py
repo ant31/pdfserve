@@ -76,14 +76,27 @@ def _prepare_output_base_path(ctx: click.Context, output_base_name_arg: str | No
     "defaults to 'chat_output' if input is a JSON string.",
 )
 @click.option(
-    "--current-user-name",
-    "-u",
-    default="Me",
+    "--display-name-override",
+    "-dn",
+    default=None,
     show_default=True,
-    help="Name to display for 'outgoing' messages.",
+    help="Name to display for 'outgoing' messages. If not set, the message's original name/role is used.",
+)
+@click.option(
+    "--user-identifier-for-direction",
+    "-uid",
+    default=None,
+    show_default=True,
+    help="Identifier (name or role) to determine 'outgoing' messages. If not set, inference is attempted.",
 )
 @click.pass_context
-def chat_cli(ctx: click.Context, input_str: str, output_base_name_arg: str | None, current_user_name: str) -> None:
+def chat_cli(
+    ctx: click.Context,
+    input_str: str,
+    output_base_name_arg: str | None,
+    display_name_override: str | None,
+    user_identifier_for_direction: str | None,
+) -> None:
     """Converts chat history from JSON to HTML and PDF files."""
     messages, input_file, default_base_name = _process_chat_input(ctx, input_str)
     output_path_for_converter = _prepare_output_base_path(ctx, output_base_name_arg, default_base_name)
@@ -115,7 +128,8 @@ def chat_cli(ctx: click.Context, input_str: str, output_base_name_arg: str | Non
     converter = ChatConverter(
         messages=messages,  # messages are now guaranteed to be loaded if input was valid
         output=output_path_for_converter,  # Renamed from output_base_path
-        current_user_name=current_user_name,
+        display_name_override=display_name_override,
+        user_identifier_for_direction=user_identifier_for_direction,
     )
 
     # Generate HTML

@@ -51,10 +51,17 @@ def _cleanup_file(file_path: str | Path):
 async def export_chat_document(
     chat_data: list[ChatMessage],
     background_tasks: BackgroundTasks,
-    user: str = Query(
-        "Me",
-        alias="user",
-        description="Name to display for 'outgoing' messages (e.g., messages with role 'user').",
+    display_name_override: str
+    | None = Query(
+        None,
+        alias="display_name",
+        description="Name to display for 'outgoing' messages. If not set, the message's original name/role is used.",
+    ),
+    user_identifier_for_direction: str
+    | None = Query(
+        None,
+        alias="user_identifier",
+        description="Identifier (name or role) to determine 'outgoing' messages. If not set, inference is attempted.",
     ),
     output: str = Query(
         "chat_export",
@@ -79,23 +86,21 @@ async def export_chat_document(
                 "name": "UserX",
                 "role": "user",
                 "message": "Hello, how are you?",
-                "timestamp": "2024-05-27T10:00:00Z",
-                "direction": "outgoing"
+                "timestamp": "2024-05-27T10:00:00Z"
             },
             {
                 "name": "SupportAgent",
                 "role": "agent",
                 "message": "I am fine, thank you! How can I help you today?",
-                "timestamp": "2024-05-27T10:00:30Z",
-                "direction": "incoming"
+                "timestamp": "2024-05-27T10:00:30Z"
             }
         ]
         ```
-    - **user** (query parameter, optional, default: "Me"): The name to display for 'outgoing' messages.
+    - **display_name** (query parameter, optional): The name to display for 'outgoing' messages.
+    - **user_identifier** (query parameter, optional): Identifier (name or role) for 'outgoing' messages.
     - **output** (query parameter, optional, default: "chat_export"): Desired base filename for the output file.
     - **fmt** (query parameter, optional, default: "pdf"): Desired output format ('pdf' or 'html').
     """
-    current_user_name = user
     output_base_filename = output
     file_suffix = f".{fmt.lower()}"
     output_filename_with_suffix = output_base_filename
@@ -103,11 +108,17 @@ async def export_chat_document(
         output_filename_with_suffix = Path(output_base_filename).stem + file_suffix
 
     logger.info(f"Requested format: {fmt}, Output filename: {output_filename_with_suffix}")
+    logger.debug(f"API - Display Name Override: {display_name_override}")
+    logger.debug(f"API - User Identifier for Direction: {user_identifier_for_direction}")
 
     temp_file_path: Path | None = None
 
     try:
-        converter = ChatConverter(messages=chat_data, current_user_name=current_user_name)
+        converter = ChatConverter(
+            messages=chat_data,
+            display_name_override=display_name_override,
+            user_identifier_for_direction=user_identifier_for_direction,
+        )
 
         with tempfile.NamedTemporaryFile(suffix=file_suffix, delete=False) as tmp_file:
             temp_file_path = Path(tmp_file.name)
