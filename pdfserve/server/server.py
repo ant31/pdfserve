@@ -7,7 +7,11 @@ from pdfserve.config import config
 
 
 class PdfServer(Server):
-    _routers: ClassVar[set[str]] = {"pdfserve.server.api.pdf:router", "pdfserve.server.api.ocr:router"}
+    _routers: ClassVar[set[str]] = {
+        "pdfserve.server.api.pdf:router",
+        "pdfserve.server.api.ocr:router",
+        "pdfserve.server.api.tools:router",
+    }
 
 
 # override this method to use a different server class/config

@@ -32,10 +32,11 @@ dependencies = [
             "aioshutil",
             "python-multipart",
             "types-fpdf2",
-            "pillow-heif"
+            "pillow-heif",
+            "pdfkit (>=1.0.0,<2.0.0)"
 ]
 [tool.poetry.scripts]
-pdfserve = 'pdfserve.main:main'
+pdfserve = 'pdfserve.cmd.main:main'
 
 
 [tool.poetry.group.dev.dependencies]

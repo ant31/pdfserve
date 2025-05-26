@@ -6,6 +6,7 @@ from ant31box.cmd.version import version
 from pdfserve.config import config
 from pdfserve.version import VERSION
 
+from .chat import chat_cli
 from .merge import merge
 from .server import server
 from .stamp import stampcli
@@ -30,6 +31,8 @@ def main():
     cli.add_command(merge)
     # Stamp pdf
     cli.add_command(stampcli, name="stamp")
+    # Convert chat JSON to HTML/PDF
+    cli.add_command(chat_cli)
 
     # Parse cmd-line arguments and options
     # pylint: disable=no-value-for-parameter
