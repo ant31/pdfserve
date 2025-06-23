@@ -211,7 +211,7 @@ class ChatConverter:
                     if msg_author and msg_author.lower() == self.display_name_override.lower():
                         self._final_user_identifier_for_direction = msg_author
                         break
-            
+
             # 2. If still not found, try to infer based on common "user" or "me" roles/names
             if not self._final_user_identifier_for_direction:
                 for msg_item in self.messages:
@@ -221,12 +221,14 @@ class ChatConverter:
                         break
 
             # 3. If still not found, use the first message's author
-            if not self._final_user_identifier_for_direction and self.messages: # Should be true if we are in this block
+            if (
+                not self._final_user_identifier_for_direction and self.messages
+            ):  # Should be true if we are in this block
                 # Ensure messages[0] exists and has an author
                 first_msg_author = self.messages[0].name or self.messages[0].role
-                if first_msg_author: # Check first_msg_author is not None
+                if first_msg_author:  # Check first_msg_author is not None
                     self._final_user_identifier_for_direction = first_msg_author
-        
+
         logger.debug(f"Final user identifier for direction: {self._final_user_identifier_for_direction}")
         logger.debug(f"Display name override: {self.display_name_override}")
 
@@ -234,7 +236,7 @@ class ChatConverter:
         """
         Determines the effective direction and display author for a message.
         """
-        message_actual_author = msg.name or msg.role or "Unknown" # Fallback for display if name/role are None
+        message_actual_author = msg.name or msg.role or "Unknown"  # Fallback for display if name/role are None
 
         eff_direction = "ingoing"  # Default direction
 
@@ -247,9 +249,9 @@ class ChatConverter:
         ):
             # Infer direction if not explicit and an identifier is set
             eff_direction = "outgoing"
-        
+
         # Determine display author
-        display_author = message_actual_author # Default to the message's own identifier
+        display_author = message_actual_author  # Default to the message's own identifier
 
         if eff_direction == "outgoing" and self.display_name_override:
             display_author = self.display_name_override

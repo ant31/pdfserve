@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import contextlib
 import logging
 import re
 import tarfile
@@ -20,7 +21,7 @@ from PIL.ImageOps import contain
 from pillow_heif import register_heif_opener
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, field_validator  # , model_serializer
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import ArrayObject
+from pypdf.generic import ArrayObject, RectangleObject
 
 register_heif_opener()
 type StreamOrPath = Path | str | BinaryIO | IO[Any]
@@ -193,7 +194,7 @@ def get_position(
 
 
 class BaseStamp(BaseModel):
-    over: bool = Field(default=False)
+    over: bool = Field(default=True)
 
 
 class BaseCustomStamp(BaseStamp):
@@ -685,7 +686,9 @@ class PdfTransform:
             if pages and p not in pages:
                 continue
             p += 1
-            page_format = (userspace_to_mm(page.bleedbox.width), userspace_to_mm(page.bleedbox.height))
+            page_format = self.get_page_dimensions(reader.pages[p - 1])
+            if page_format is None:
+                raise ValueError(f"Could not determine page format for page {p}, skipping stamp")
             stamp_pdf = stamp.to_pdf(page_format=page_format).pages[0]
             page.merge_page(stamp_pdf, over=stamp.over)
         success, _ = writer.write(cast(StreamOrPath, output))
@@ -694,5 +697,43 @@ class PdfTransform:
 
         return output
 
+    def get_page_dimensions(self, page) -> tuple[float, float] | None:
+        """
+        Iterates through pages and robustly gets their dimensions.
 
-# pylint: disable=dangerous-default-value
+        Args:
+            writer: A pypdf PdfWriter object containing pages.
+            pages: An optional list of page numbers (0-indexed) to process.
+        """
+        current_page_index = 0
+
+        logger.debug("Processing page dimensions...")
+
+        page_box = None
+        # 1. Start by trying to get the most specific box, the bleedbox.
+        # The 'get' method is a safer way to access it than direct attribute access.
+        with contextlib.suppress(AttributeError):
+            page_box = page.bleedbox
+
+        # 2. If BleedBox is not found, fall back to CropBox.
+        if page_box is None:
+            with contextlib.suppress(AttributeError):
+                page_box = page.cropbox
+
+        # 3. If CropBox is also not found, fall back to MediaBox.
+        # MediaBox is a required attribute for all page objects, so it's a safe fallback.
+        if page_box is None:
+            page_box = page.mediabox
+
+        # Ensure we have a valid RectangleObject to work with
+        if isinstance(page_box, RectangleObject):
+            width_mm = userspace_to_mm(page_box.width)
+            height_mm = userspace_to_mm(page_box.height)
+            page_format = (width_mm, height_mm)
+            logger.debug(f"  - Page {current_page_index}: Found format {page_format[0]:.2f} x {page_format[1]:.2f} mm")
+            return page_format
+        else:
+            logger.warning(f"  - Page {current_page_index}: Could not determine page box.")
+        return None
+
+    # pylint: disable=dangerous-default-value

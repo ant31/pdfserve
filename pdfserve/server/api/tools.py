@@ -51,14 +51,12 @@ def _cleanup_file(file_path: str | Path):
 async def export_chat_document(
     chat_data: list[ChatMessage],
     background_tasks: BackgroundTasks,
-    display_name_override: str
-    | None = Query(
+    display_name_override: str | None = Query(
         None,
         alias="display_name",
         description="Name to display for 'outgoing' messages. If not set, the message's original name/role is used.",
     ),
-    user_identifier_for_direction: str
-    | None = Query(
+    user_identifier_for_direction: str | None = Query(
         None,
         alias="user_identifier",
         description="Identifier (name or role) to determine 'outgoing' messages. If not set, inference is attempted.",
