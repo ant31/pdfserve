@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal  # Retaining for compatibility, though specific list/tuple/optional not needed with |
 
-import pdfkit
 from pydantic import AliasChoices, BaseModel, Field
+from weasyprint import HTML
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,17 @@ HTML_TEMPLATE_HEADER = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat History</title>
     <style>
+        /* Page geometry for the PDF rendering (WeasyPrint). The HTML output ignores it. */
+        @page {
+            size: A4;
+            margin: 20mm 15mm;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; /* Body margin is controlled by PDF options for the page itself */
+            margin: 0; /* Page margins are set by @page */
             padding: 0;
             background-color: #f4f4f8;
             color: #333;
-            /* display: flex; flex-direction: column; align-items: center; /* These might not be ideal for PDF page flow */
         }
         .chat-container {
             width: 100%; /* Takes width of the printable area */
@@ -53,42 +57,39 @@ HTML_TEMPLATE_HEADER = """
             padding: 20px; /* Padding inside the container, distinct from page margins */
             background-color: #fff;
             border-radius: 12px; /* May not render in all PDF viewers or be desired */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Likely removed in print styles */
-            display: flex;
-            flex-direction: column;
-            gap: 15px; /* This provides spacing BETWEEN message bubbles */
-                      /* If more spacing is needed in PDF, increase this value, possibly in @media print */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Removed in print styles */
         }
+        /* Layout is deliberately block-based rather than flex: flex containers cannot be
+           fragmented across pages by paged-media renderers, which silently clips long chats. */
         .message {
-            display: flex;
-            flex-direction: column;
-            max-width: 75%;
-            word-wrap: break-word;
-            page-break-inside: avoid !important;
-            break-inside: avoid-page !important;
+            margin-bottom: 15px; /* Spacing BETWEEN message bubbles */
         }
+        .message:last-child {
+            margin-bottom: 0;
+        }
+        /* display: table gives shrink-to-fit width (like inline-block) while staying a block-level
+           box that CAN be split across pages, so an over-long message is never lost. */
         .message-bubble {
+            display: table;
+            max-width: 75%;
             padding: 12px 18px;
             border-radius: 20px;
             line-height: 1.5;
-            display: inline-block; /* Help wkhtmltopdf keep this block together */
-            width: auto; /* Allow it to size to content, constrained by parent .message */
-            max-width: 100%; /* Ensure it doesn't overflow .message */
-            page-break-inside: avoid !important;
-            break-inside: avoid-page !important;
-        }
-        .message.outgoing {
-            align-self: flex-end;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
         .message.outgoing .message-bubble {
+            margin-left: auto; /* Push the bubble to the right edge */
+            margin-right: 0;
             background-color: #007bff;
             color: white;
             border-bottom-right-radius: 5px;
         }
-        .message.ingoing {
-            align-self: flex-start;
-        }
-        .message.ingoing .message-bubble {
+        .message.incoming .message-bubble {
+            margin-left: 0;
+            margin-right: auto;
             background-color: #e9e9eb;
             color: #333;
             border-bottom-left-radius: 5px;
@@ -105,9 +106,7 @@ HTML_TEMPLATE_HEADER = """
         }
         .message-content {
             font-size: 1em;
-            page-break-inside: avoid !important; /* Primary rule to prevent breaking within content */
-            break-inside: avoid-page !important; /* Modern equivalent */
-            display: block; /* Ensure it's treated as a block for break calculations */
+            display: block;
         }
         .message-datetime {
             font-size: 0.75em;
@@ -118,7 +117,7 @@ HTML_TEMPLATE_HEADER = """
         .message.outgoing .message-datetime {
             color: #d0d0d0;
         }
-        .message.ingoing .message-datetime {
+        .message.incoming .message-datetime {
             color: #888;
         }
         .no-datetime .message-datetime {
@@ -130,34 +129,28 @@ HTML_TEMPLATE_HEADER = """
                 margin: 10px; /* For HTML view on small screens */
                 padding: 15px;
             }
-            .message {
-                max-width: 85%;
-            }
             .message-bubble {
+                max-width: 85%;
                 padding: 10px 15px;
             }
         }
         @media print {
             body {
                 background-color: #fff !important; /* Ensure white background for printing */
-                -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                margin: 0; /* Body margin is controlled by PDF options */
+                margin: 0;
                 padding: 0;
             }
             .chat-container {
                 box-shadow: none !important;
                 border: none; /* Remove border for print, or use a subtle one if preferred */
-                margin: 0 !important; /* Container margin should be 0, page margins control spacing */
-                padding: 0 !important; /* Container padding can be 0 if page margins are sufficient */
-                                   /* Or keep some padding if you want space between page edge and first bubble */
+                margin: 0 !important; /* Container margin should be 0, @page controls spacing */
+                padding: 0 !important;
                 max-width: 100% !important; /* Use full printable width */
                 border-radius: 0 !important; /* No rounded corners in PDF */
-                gap: 20px !important; /* Increase gap slightly for PDF if needed */
             }
-            .message, .message-bubble, .message-content {
-                page-break-inside: avoid !important;
-                break-inside: avoid-page !important;
+            .message {
+                margin-bottom: 20px !important; /* Slightly more air between bubbles in the PDF */
             }
         }
     </style>
@@ -238,7 +231,7 @@ class ChatConverter:
         """
         message_actual_author = msg.name or msg.role or "Unknown"  # Fallback for display if name/role are None
 
-        eff_direction = "ingoing"  # Default direction
+        eff_direction = "incoming"  # Default direction
 
         # Use explicit direction if provided in the message
         if msg.direction:
@@ -359,30 +352,17 @@ class ChatConverter:
             A tuple containing the Path to the saved PDF file (or None) and an io.BytesIO object
             with the PDF content (empty if generation fails or no messages).
         """
-        final_output_path = self._prepare_output_path(output, ".pdf")
-        pdf_file_like = io.BytesIO()  # Default to empty
-
-        html_content_str = self._generate_html_content()
-
         if not self.messages:
             raise ValueError("No messages to convert to PDF. Ensure chat data is provided.")
-        pdf_bytes: bytes | None = None
-        options = {
-            "encoding": "UTF-8",
-            "custom-header": [("Accept-Encoding", "gzip")],
-            "no-outline": None,
-            "enable-local-file-access": None,
-            "margin-top": "20mm",
-            "margin-right": "15mm",
-            "margin-bottom": "20mm",
-            "margin-left": "15mm",
-            "print-media-type": None,
-            "load-error-handling": "ignore",
-        }
-        pdf_bytes_or_bool = pdfkit.from_string(html_content_str, output_path=False, options=options)
-        if not isinstance(pdf_bytes_or_bool, bytes) or not pdf_bytes_or_bool:
+
+        final_output_path = self._prepare_output_path(output, ".pdf")
+        html_content_str = self._generate_html_content()
+
+        # WeasyPrint renders with the `print` media type by default, so the @media print rules
+        # and the @page margins in the template apply without any extra option.
+        pdf_bytes = HTML(string=html_content_str).write_pdf()
+        if not pdf_bytes:
             raise ValueError("no pdf bytes")
-        pdf_bytes = pdf_bytes_or_bool
 
         pdf_file_like = io.BytesIO(pdf_bytes)
         pdf_file_like.seek(0)

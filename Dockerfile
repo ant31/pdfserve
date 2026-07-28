@@ -4,7 +4,7 @@ RUN mkdir -p $workdir
 WORKDIR $workdir
 RUN apt-get update -y
 RUN apt-get install -y openssl ca-certificates
-RUN apt-get install -y libffi-dev build-essential libssl-dev git rustc cargo wkhtmltopdf
+RUN apt-get install -y libffi-dev build-essential libssl-dev git rustc cargo
 RUN pip install pip -U
 RUN pip install poetry -U
 COPY poetry.lock $workdir
@@ -18,5 +18,8 @@ COPY . $workdir
 # Most of dependencies are already installed, it only install the app
 RUN poetry install --without dev
 RUN apt-get remove --purge -y libffi-dev build-essential libssl-dev git rustc cargo
+# WeasyPrint runtime libraries (HTML -> PDF for chat exports) plus a font family the
+# chat template can resolve. Installed after the build-dep purge so they survive it.
+RUN apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-liberation
 
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
