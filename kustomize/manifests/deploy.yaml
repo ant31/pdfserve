@@ -20,10 +20,8 @@ spec:
     spec:
       containers:
       - command:
-          - poetry
+          - pdfserve
         args:
-          - run
-          - bin/pdfserve
           - server
           - --config
           - /app/current-config.yaml

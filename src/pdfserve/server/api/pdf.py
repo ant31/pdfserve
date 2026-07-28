@@ -115,7 +115,6 @@ async def merge_pdf(
     files: Annotated[
         list[UploadFile | str] | None,
         File(
-            default_factory=list,
             title="Files",
             description="a list of files to merge, can be a list of URL to download the file from or the uploaded file as binary object",
         ),
