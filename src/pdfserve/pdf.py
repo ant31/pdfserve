@@ -351,9 +351,7 @@ class PdfTransform:
         rotate: int = 0,
     ) -> PdfFileInfo:
         if isinstance(fileinput, str | Path):
-            info = await self.download_file(
-                fileinput, dest_dir=dest_dir, use_temporary=use_temporary, rotate=rotate
-            )
+            info = await self.download_file(fileinput, dest_dir=dest_dir, use_temporary=use_temporary, rotate=rotate)
         elif isinstance(fileinput, Image):
             info = PdfFileInfo(
                 filename=self._img_filename(fileinput),

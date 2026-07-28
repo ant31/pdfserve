@@ -2,62 +2,80 @@
 name = "pdfserve"
 version = "0.0.2"
 description = ""
-authors = [{email="2t.antoine@gmail.com", name="ant31"}]
-readme = "README.md"
-packages = [{ include = "pdfserve" }]
-include = []
+authors = [{ name = "ant31", email = "2t.antoine@gmail.com" }]
 requires-python = ">=3.12,<4"
-dependencies = [
-             "asyncio (>=3)",
-             "pydantic",
-             "click",
-             "pyyaml",
-             "sentry-sdk[fastapi]",
-             "typing-extensions",
-             "ant31box[s3]",
-             "aiohttp-prometheus-exporter",
-             "paramiko",
-             "opticr @ git+https://github.com/lzayep/opticr@main",
-             "aiohttp[speedups]",
-             "aiohttp_requests",
-             "fastapi[all]",
-             "starlette-exporter",
-             "pydantic-settings",
-             "pypdf",
-             "typer",
-             "pillow",
-             "rich",
-             "fpdf2",
-            "aiofiles",
-            "aioshutil",
-            "python-multipart",
-            "types-fpdf2",
-            "pillow-heif",
-            "weasyprint (>=69.0,<70.0)"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-[tool.poetry.scripts]
-pdfserve = 'pdfserve.cmd.main:main'
+dependencies = [
+    "asyncio (>=3)",
+    "pydantic",
+    "click",
+    "pyyaml",
+    "sentry-sdk[fastapi]",
+    "typing-extensions",
+    "ant31box[s3]",
+    "aiohttp-prometheus-exporter",
+    "paramiko",
+    "opticr @ git+https://github.com/lzayep/opticr@main",
+    "aiohttp[speedups]",
+    "aiohttp_requests",
+    "fastapi[all]",
+    "starlette-exporter",
+    "pydantic-settings",
+    "pypdf",
+    "typer",
+    "pillow",
+    "rich",
+    "fpdf2",
+    "aiofiles",
+    "aioshutil",
+    "python-multipart",
+    "types-fpdf2",
+    "pillow-heif",
+    "weasyprint (>=69.0,<70.0)",
+]
+include = []
+packages = [{ include = "pdfserve" }]
 
+[project.scripts]
+pdfserve = "pdfserve.cmd.main:main"
 
-[tool.poetry.group.dev.dependencies]
-aioresponses = "*"
-pyreadline = "*"
-pylint-pydantic = "*"
-black = "*"
-ipython = "*"
-pylint = "*"
-pyre-check = "*"
-types-requests = "*"
-isort = "*"
-pytest = "*"
-coverage = "*"
-pytest-cov = "*"
-pytest-ordering = "*"
-pytest-asyncio = "*"
-pyright = "*"
-pytest-aioresponses = "*"
-ruff = "*"
-bump-my-version = "^1.1.2"
+[dependency-groups]
+dev = [
+    "aioresponses",
+    "pyreadline",
+    "pylint-pydantic",
+    "black",
+    "ipython",
+    "pylint",
+    "pyre-check",
+    "types-requests",
+    "isort",
+    "pytest",
+    "coverage",
+    "pytest-cov",
+    "pytest-ordering",
+    "pytest-asyncio",
+    "pyright",
+    "pytest-aioresponses",
+    "ruff",
+    "bump-my-version>=1.1.2,<2",
+]
+
+[tool.uv]
+default-groups = "all"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdfserve"]
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12.0"]
+build-backend = "uv_build"
 
 [tool.black]
 line-length = 120
@@ -71,11 +89,7 @@ line_length = 120
 skip_gitignore = true
 
 [tool.pytest]
-testpaths = "tests/"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+testpaths = ["tests/"]
 
 
 
@@ -98,7 +112,7 @@ commit_args = ""
 
 
 [[tool.bumpversion.fiiles]]
-filename = 'pdfserve/__init__.py'
+filename = 'src/pdfserve/__init__.py'
 search = "__version__ = \"{current_version}\""
 replace = "__version__ = \"{new_version}\""
 regex = true

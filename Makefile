@@ -2,7 +2,8 @@
 
 
 VERSION := `cat VERSION`
-package := "pdfserve"
+package := "src/pdfserve"
+packagename := "pdfserve"
 
 help:
 	@echo "clean - remove all build, test, coverage and Python artifacts"
@@ -43,7 +44,7 @@ clean-test:
 	rm -f coverage.xml
 	rm -f report.xml
 test:
-	PDFSERVE_CONFIG=tests/data/test_config.yaml poetry run py.test --cov=$(package) --verbose tests --cov-report=html --cov-report=term --cov-report xml:coverage.xml --cov-report=term-missing --junitxml=report.xml --asyncio-mode=auto
+	PDFSERVE_CONFIG=tests/data/test_config.yaml uv run py.test --cov=$(package) --verbose tests --cov-report=html --cov-report=term --cov-report xml:coverage.xml --cov-report=term-missing --junitxml=report.xml --asyncio-mode=auto
 
 coverage:
 	poetry run coverage run --source $(package) setup.py test
@@ -52,58 +53,58 @@ coverage:
 	$(BROWSER) htmlcov/index.html
 
 install: clean
-	poetry install
+	uv install
 
 pylint-quick:
-	poetry run pylint --rcfile=.pylintrc $(package)  -E -r y
+	uv run pylint --rcfile=.pylintrc $(package)  -E -r y
 
 pylint:
-	poetry run pylint --rcfile=".pylintrc" $(package)
+	uv run pylint --rcfile=".pylintrc" $(package)
 
 
-lint: format-test isort-check ruff poetry-check
-small-check: format-test isort-check poetry-check
+lint: format-test isort-check ruff uv-check
+small-check: format-test isort-check uv-check
 check: lint
 
 pyre: pyre-check
 
 
 pyre-check:
-	poetry run pyre --noninteractive check 2>/dev/null
+	uv run pyre --noninteractive check 2>/dev/null
 
 format:
-	poetry run ruff format $(package)
+	uv run ruff format $(package)
 
 format-test:
-	poetry run ruff format $(package) --check
+	uv run ruff format $(package) --check
 
-poetry-check:
-	poetry check --lock
+uv-check:
+	uv lock --locked --offline
 
 publish: clean
-	poetry build
-	poetry publish
+	uv build
+	uv publish
 
 isort:
-	poetry run isort .
-	poetry run ruff check --select I $(package) tests --fix
+	uv run isort .
+	uv run ruff check --select I $(package) tests --fix
 
 isort-check:
-	poetry run ruff check --select I $(package) tests
-	poetry run isort --diff --check .
+	uv run ruff check --select I $(package) tests
+	uv run isort --diff --check .
 
 ruff:
-	poetry run ruff check
+	uv run ruff check
 
 fix: format isort
-	poetry run ruff check --fix
+	uv run ruff check --fix
 
 .ONESHELL:
 pyrightconfig:
 	jq \
       --null-input \
-      --arg venv "$$(basename $$(poetry env info -p))" \
-      --arg venvPath "$$(dirname $$(poetry env info -p))" \
+      --arg venv "$$(basename $$(uv env info -p))" \
+      --arg venvPath "$$(dirname $$(uv env info -p))" \
       '{ "venv": $$venv, "venvPath": $$venvPath }' \
       > pyrightconfig.json
 
@@ -116,7 +117,7 @@ run-server:
 	./bin/pdfserve server --config localconfig.yaml
 
 
-CONTAINER_REGISTRY=ghcr.io/ant31/$(package)
+CONTAINER_REGISTRY=ghcr.io/ant31/$(packagemame)
 
 
 docker-push-local: docker-build-local
@@ -130,4 +131,9 @@ docker-push:
 
 BUMP ?= patch
 bump:
-	poetry run bump-my-version bump $(BUMP)
+	uv run bump-my-version bump $(BUMP)
+
+
+upgrade-dep:
+	uv sync --upgrade
+	uv lock -U --resolution=highest

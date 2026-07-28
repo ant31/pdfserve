@@ -71,7 +71,6 @@ HTML_TEMPLATE_HEADER = """
            box that CAN be split across pages, so an over-long message is never lost. */
         .message-bubble {
             display: table;
-            max-width: 75%;
             padding: 12px 18px;
             border-radius: 20px;
             line-height: 1.5;
@@ -79,6 +78,15 @@ HTML_TEMPLATE_HEADER = """
             overflow-wrap: break-word;
             page-break-inside: avoid;
             break-inside: avoid;
+        }
+        /* The bubble width is capped on its children, not on .message-bubble itself: paged-media
+           renderers derive a table's width from its content and ignore max-width on it, which let a
+           single long word (a URL) push the bubble clean off the page. Blocks do honour max-width,
+           and overflow-wrap then breaks the word inside it. 355pt + the 36px padding is ~75% of the
+           A4 print area above; it is an absolute length because a percentage inside a table cell
+           would resolve against the cell it is sizing. */
+        .message-bubble > div {
+            max-width: 355pt;
         }
         .message.outgoing .message-bubble {
             margin-left: auto; /* Push the bubble to the right edge */
@@ -130,8 +138,10 @@ HTML_TEMPLATE_HEADER = """
                 padding: 15px;
             }
             .message-bubble {
-                max-width: 85%;
                 padding: 10px 15px;
+            }
+            .message-bubble > div {
+                max-width: 260pt;
             }
         }
         @media print {
